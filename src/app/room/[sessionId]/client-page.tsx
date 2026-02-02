@@ -31,7 +31,7 @@ export default function ClientPage({ sessionId, isHost }: ClientPageProps) {
   
   const [isJoined, setIsJoined] = useState(false);
   const [studentName, setStudentName] = useState('');
-  const [showUrlSettings, setShowUrlSettings] = useState(false);
+  const [showUrlSettings, setShowUrlSettings] = useState(true);
 
   const isLoading = isSessionLoading || areParticipantsLoading || isUserLoading;
   
