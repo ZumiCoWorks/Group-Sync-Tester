@@ -1,7 +1,5 @@
 "use client";
 import { useState } from 'react';
-import { useAuth } from '@/components/providers/auth-provider';
-import { joinSession } from '@/app/room/[sessionId]/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -11,11 +9,10 @@ const AVATARS = ['⚡', '💎', '🔥', '🪐', '🧬', '💻', '🎓', '⚖️'
 
 type StudentJoinFormProps = {
   sessionId: string;
-  onJoin: (name: string) => void;
+  onJoin: (name: string, avatar: string) => Promise<void>;
 };
 
 export function StudentJoinForm({ sessionId, onJoin }: StudentJoinFormProps) {
-  const { user } = useAuth();
   const [studentName, setStudentName] = useState('');
   const [myAvatar, setMyAvatar] = useState(AVATARS[Math.floor(Math.random() * AVATARS.length)]);
   const [isLoading, setIsLoading] = useState(false);
@@ -23,12 +20,12 @@ export function StudentJoinForm({ sessionId, onJoin }: StudentJoinFormProps) {
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !studentName) return;
+    if (!studentName) return;
 
     setIsLoading(true);
     try {
-      await joinSession(sessionId, user.uid, studentName, myAvatar);
-      onJoin(studentName);
+      await onJoin(studentName, myAvatar);
+      // onJoin will handle setting isJoined state
     } catch (error) {
       console.error(error);
       toast({ variant: 'destructive', title: 'Error', description: 'Could not join the session. The room might not exist.' });

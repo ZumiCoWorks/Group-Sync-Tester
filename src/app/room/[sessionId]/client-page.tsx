@@ -1,87 +1,137 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { doc, onSnapshot, collection } from 'firebase/firestore';
-import { useAuth } from '@/components/providers/auth-provider';
-import { db, appId } from '@/lib/firebase';
+import { useEffect, useState, useMemo } from 'react';
+import { doc, onSnapshot, collection, setDoc, updateDoc, getDocs } from 'firebase/firestore';
+import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import type { Session, Participant } from '@/lib/types';
-
 import { HostView } from '@/components/room/host-view';
 import { StudentJoinForm } from '@/components/room/student-join-form';
 import { StudentLobbyView } from '@/components/room/student-lobby-view';
 import { StudentGroupedView } from '@/components/room/student-grouped-view';
 import { Navbar } from '@/components/shared/navbar';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Terminal } from 'lucide-react';
+
+const appId = process.env.NEXT_PUBLIC_APP_ID || 'varsity-group-pro';
 
 type ClientPageProps = {
   sessionId: string;
   isHost: boolean;
-  initialSession: Session;
-  initialParticipants: Participant[];
 };
 
-export default function ClientPage({
-  sessionId,
-  isHost,
-  initialSession,
-  initialParticipants,
-}: ClientPageProps) {
-  const { user } = useAuth();
-  const [sessionData, setSessionData] = useState<Session | null>(initialSession);
-  const [participants, setParticipants] = useState<Participant[]>(initialParticipants);
+export default function ClientPage({ sessionId, isHost }: ClientPageProps) {
+  const { user, isUserLoading } = useUser();
+  const db = useFirestore();
+
+  const sessionRef = useMemoFirebase(() => db ? doc(db, 'artifacts', appId, 'public', 'data', 'sessions', sessionId) : null, [db, sessionId]);
+  const participantsRef = useMemoFirebase(() => db ? collection(db, 'artifacts', appId, 'public', 'data', 'sessions', sessionId, 'participants') : null, [db, sessionId]);
+
+  const { data: sessionData, isLoading: isSessionLoading } = useDoc<Session>(sessionRef);
+  const { data: participants, isLoading: areParticipantsLoading } = useCollection<Participant>(participantsRef);
+  
   const [isJoined, setIsJoined] = useState(false);
   const [studentName, setStudentName] = useState('');
   const [showUrlSettings, setShowUrlSettings] = useState(false);
+
+  const isLoading = isSessionLoading || areParticipantsLoading || isUserLoading;
   
   useEffect(() => {
-    if (!user || !sessionId) return;
+    if (!user || !sessionId || !sessionRef || !sessionData) return;
     
     if(isHost && sessionData?.hostId === 'pending') {
-        const sessionRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', sessionId);
         setDoc(sessionRef, { hostId: user.uid }, { merge: true });
     }
+  }, [user, sessionId, isHost, sessionData, sessionRef]);
 
-    const unsubSession = onSnapshot(
-      doc(db, 'artifacts', appId, 'public', 'data', 'sessions', sessionId),
-      (doc) => {
-        if (doc.exists()) {
-          setSessionData(doc.data() as Session);
-        }
-      }
+  useEffect(() => {
+    if (user && participants?.some(p => p.id === user.uid)) {
+        setIsJoined(true);
+    }
+  }, [user, participants]);
+
+
+  // Client-side actions
+  const joinSession = async (name: string, avatar: string) => {
+    if (!user || !db) return;
+    const participantRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', sessionId, 'participants', user.uid);
+    await setDoc(participantRef, {
+      id: user.uid,
+      sessionId: sessionId,
+      name,
+      avatar,
+      joinedAt: Date.now(),
+    });
+    setStudentName(name);
+    setIsJoined(true);
+  };
+
+  const shuffleGroups = async (groupCount: number) => {
+    if (!sessionRef || !participantsRef || !participants || participants.length < groupCount) return;
+
+    const shuffled = [...participants].sort(() => Math.random() - 0.5);
+    const newGroups: { name: string; avatar: string }[][] = Array.from({ length: groupCount }, () => []);
+    
+    shuffled.forEach((p, index) => {
+      newGroups[index % groupCount].push({ name: p.name, avatar: p.avatar });
+    });
+
+    await updateDoc(sessionRef, {
+      status: 'grouped',
+      groups: newGroups,
+    });
+  };
+
+  const resetToLobby = async () => {
+    if (!sessionRef) return;
+    await updateDoc(sessionRef, {
+      status: 'lobby',
+      groups: []
+    });
+  };
+
+
+  if (isLoading) {
+    return (
+        <div className="flex h-screen w-full items-center justify-center">
+            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+        </div>
     );
+  }
 
-    const unsubParticipants = onSnapshot(
-      collection(db, 'artifacts', appId, 'public', 'data', 'sessions', sessionId, 'participants'),
-      (snapshot) => {
-        const list = snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as Participant[];
-        setParticipants(list);
-        if (user && list.some(p => p.id === user.uid)) {
-          setIsJoined(true);
-        }
-      }
-    );
-
-    return () => {
-      unsubSession();
-      unsubParticipants();
-    };
-  }, [user, sessionId, isHost, sessionData?.hostId]);
-
+  if (!sessionData && !isSessionLoading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Navbar />
+        <main className="flex-grow flex items-center justify-center p-4">
+           <Alert variant="destructive" className="max-w-md">
+             <Terminal className="h-4 w-4" />
+             <AlertTitle>Room Not Found</AlertTitle>
+             <AlertDescription>
+               The session code <span className="font-bold font-mono">{sessionId}</span> does not exist or may have expired. Please check the code and try again.
+             </AlertDescription>
+           </Alert>
+        </main>
+      </div>
+    )
+  }
 
   if (isHost) {
     return (
         <HostView 
             sessionId={sessionId}
             sessionData={sessionData}
-            participants={participants}
+            participants={participants || []}
             showUrlSettings={showUrlSettings}
             setShowUrlSettings={setShowUrlSettings}
+            shuffleGroups={shuffleGroups}
+            resetToLobby={resetToLobby}
         />
     )
   }
 
   // Student Views
   if (sessionData?.status === 'grouped') {
-    return <StudentGroupedView sessionData={sessionData} studentName={studentName} />;
+    return <StudentGroupedView sessionData={sessionData} studentName={studentName || participants?.find(p=>p.id === user?.uid)?.name || ''} />;
   }
   
   if (!isJoined) {
@@ -90,10 +140,7 @@ export default function ClientPage({
           <Navbar />
           <StudentJoinForm 
             sessionId={sessionId} 
-            onJoin={(name) => {
-              setIsJoined(true);
-              setStudentName(name);
-            }} 
+            onJoin={joinSession}
           />
         </div>
     )
@@ -102,7 +149,7 @@ export default function ClientPage({
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <StudentLobbyView myAvatar={participants.find(p => p.id === user?.uid)?.avatar || '👤'} studentName={studentName || participants.find(p=>p.id === user?.uid)?.name || ''} sessionId={sessionId} />
+      <StudentLobbyView myAvatar={participants?.find(p => p.id === user?.uid)?.avatar || '👤'} studentName={studentName || participants?.find(p=>p.id === user?.uid)?.name || ''} sessionId={sessionId} />
     </div>
   )
 }

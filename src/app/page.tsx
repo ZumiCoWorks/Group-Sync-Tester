@@ -1,10 +1,42 @@
+'use client';
+
 import { Crown, ShieldCheck, Terminal, Users, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { createSession } from '@/lib/actions';
 import { Navbar } from '@/components/shared/navbar';
+import { useRouter } from 'next/navigation';
+import { doc, setDoc } from 'firebase/firestore';
+import { useFirestore } from '@/firebase';
+import { useState } from 'react';
+
+const appId = process.env.NEXT_PUBLIC_APP_ID || 'varsity-group-pro';
 
 export default function Home() {
+  const router = useRouter();
+  const db = useFirestore();
+  const [isCreating, setIsCreating] = useState(false);
+
+  const createSession = async () => {
+    if (!db) return;
+    setIsCreating(true);
+    const newId = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const sessionRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', newId);
+
+    try {
+      await setDoc(sessionRef, {
+        hostId: 'pending',
+        status: 'lobby',
+        createdAt: Date.now(),
+        groups: [],
+      });
+      router.push(`/room/${newId}?host=true`);
+    } catch (error) {
+      console.error("Failed to create session:", error);
+      setIsCreating(false);
+    }
+  };
+
+
   return (
     <div className="min-h-screen bg-background font-sans">
       <Navbar />
@@ -18,15 +50,14 @@ export default function Home() {
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <form action={createSession}>
             <Button
-              type="submit"
+              onClick={createSession}
+              disabled={isCreating}
               size="lg"
               className="w-full sm:w-auto px-10 py-7 bg-foreground text-background rounded-full font-bold text-lg hover:bg-foreground/90 transition-all flex items-center justify-center gap-3 shadow-2xl shadow-slate-200 dark:shadow-slate-900"
             >
-              <Crown className="w-5 h-5 text-primary" /> Host a Room
+              <Crown className="w-5 h-5 text-primary" /> {isCreating ? 'Creating...' : 'Host a Room'}
             </Button>
-          </form>
           <Button
             asChild
             size="lg"

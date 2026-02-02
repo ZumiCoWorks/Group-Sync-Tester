@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
 import { RotateCcw, Users, Link as LinkIcon } from 'lucide-react';
 import { Session, Participant } from '@/lib/types';
@@ -7,10 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { UrlOverrideModal } from './url-override-modal';
-import { shuffleGroups, resetToLobby } from '@/app/room/[sessionId]/actions';
 import { Navbar } from '../shared/navbar';
-
-const AVATARS = ['⚡', '💎', '🔥', '🪐', '🧬', '💻', '🎓', '⚖️', '🏹', '🛡️', '🧪', '🔭'];
 
 type HostViewProps = {
   sessionId: string;
@@ -18,9 +15,11 @@ type HostViewProps = {
   participants: Participant[];
   showUrlSettings: boolean;
   setShowUrlSettings: (show: boolean) => void;
+  shuffleGroups: (groupCount: number) => Promise<void>;
+  resetToLobby: () => Promise<void>;
 };
 
-export function HostView({ sessionId, sessionData, participants, showUrlSettings, setShowUrlSettings }: HostViewProps) {
+export function HostView({ sessionId, sessionData, participants, showUrlSettings, setShowUrlSettings, shuffleGroups, resetToLobby }: HostViewProps) {
   const [groupCount, setGroupCount] = useState(3);
   const [isAnimating, setIsAnimating] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
@@ -32,7 +31,7 @@ export function HostView({ sessionId, sessionData, participants, showUrlSettings
   }, []);
 
   const getInviteUrl = () => {
-    const base = manualBaseUrl || (window.location.origin + window.location.pathname);
+    const base = manualBaseUrl || (window.location.origin);
     return `${base.replace(/\/room\/.*$/, '')}/room/${sessionId}`;
   };
 
@@ -52,19 +51,17 @@ export function HostView({ sessionId, sessionData, participants, showUrlSettings
     if (participants.length < 2) return;
     setIsAnimating(true);
     try {
-      await shuffleGroups(sessionId, groupCount);
-      // The onSnapshot listener will update the UI
+      await shuffleGroups(groupCount);
     } catch (error) {
       console.error(error);
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to generate groups.' });
     } finally {
-        // Let the view change first from snapshot, then turn off animation.
         setTimeout(() => setIsAnimating(false), 500);
     }
   };
 
   const handleReset = async () => {
-    await resetToLobby(sessionId);
+    await resetToLobby();
   }
 
   return (
