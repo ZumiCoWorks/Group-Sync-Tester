@@ -11,6 +11,7 @@ import { StudentGroupedView } from '@/components/room/student-grouped-view';
 import { Navbar } from '@/components/shared/navbar';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Terminal } from 'lucide-react';
+import { groupStudents } from '@/ai/flows/group-students-flow';
 
 const appId = process.env.NEXT_PUBLIC_APP_ID || 'varsity-group-pro';
 
@@ -31,7 +32,7 @@ export default function ClientPage({ sessionId, isHost }: ClientPageProps) {
   
   const [isJoined, setIsJoined] = useState(false);
   const [studentName, setStudentName] = useState('');
-  const [showUrlSettings, setShowUrlSettings] = useState(true);
+  const [showUrlSettings, setShowUrlSettings] = useState(false);
 
   const isLoading = isSessionLoading || areParticipantsLoading || isUserLoading;
   
@@ -41,9 +42,15 @@ export default function ClientPage({ sessionId, isHost }: ClientPageProps) {
     }
   }, [user, participants]);
 
+  useEffect(() => {
+    if (isHost && !isLoading) {
+      setShowUrlSettings(true);
+    }
+  }, [isHost, isLoading]);
+
 
   // Client-side actions
-  const joinSession = async (name: string, avatar: string) => {
+  const joinSession = async (name: string, avatar: string, discipline: string) => {
     if (!user || !db) return;
     const participantRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', sessionId, 'participants', user.uid);
     const participantData = {
@@ -52,6 +59,7 @@ export default function ClientPage({ sessionId, isHost }: ClientPageProps) {
       name,
       avatar,
       joinedAt: Date.now(),
+      discipline: discipline || ''
     };
     
     return setDoc(participantRef, participantData)
@@ -70,19 +78,19 @@ export default function ClientPage({ sessionId, isHost }: ClientPageProps) {
       });
   };
 
-  const shuffleGroups = async (groupCount: number) => {
-    if (!sessionRef || !participantsRef || !participants || participants.length < groupCount) return;
+  const shuffleGroups = async (groupCount: number, exclusions: {p1Id: string, p2Id: string}[], useDisciplines: boolean) => {
+    if (!sessionRef || !participants || participants.length < groupCount) return;
 
-    const shuffled = [...participants].sort(() => Math.random() - 0.5);
-    const newGroups: { name: string; avatar: string }[][] = Array.from({ length: groupCount }, () => []);
-    
-    shuffled.forEach((p, index) => {
-      newGroups[index % groupCount].push({ name: p.name, avatar: p.avatar });
+    const result = await groupStudents({
+      participants,
+      groupCount,
+      exclusions: exclusions.map(e => [e.p1Id, e.p2Id]),
+      useDisciplines
     });
 
     const updateData = {
       status: 'grouped',
-      groups: newGroups,
+      groups: result.groups,
     };
 
     return updateDoc(sessionRef, updateData).catch((serverError) => {

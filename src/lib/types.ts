@@ -3,6 +3,7 @@ export type Participant = {
   name: string;
   avatar: string;
   joinedAt: number;
+  discipline?: string;
 };
 
 export type Group = {

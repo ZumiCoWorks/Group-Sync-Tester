@@ -1,13 +1,17 @@
 'use client';
 import { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
-import { RotateCcw, Users, Link as LinkIcon } from 'lucide-react';
+import { RotateCcw, Users, Link as LinkIcon, X } from 'lucide-react';
 import { Session, Participant } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { UrlOverrideModal } from './url-override-modal';
 import { Navbar } from '../shared/navbar';
+import { Separator } from '../ui/separator';
+import { Switch } from '../ui/switch';
+import { Label } from '../ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type HostViewProps = {
   sessionId: string;
@@ -15,7 +19,7 @@ type HostViewProps = {
   participants: Participant[];
   showUrlSettings: boolean;
   setShowUrlSettings: (show: boolean) => void;
-  shuffleGroups: (groupCount: number) => Promise<void>;
+  shuffleGroups: (groupCount: number, exclusions: { p1Id: string; p2Id: string }[], useDisciplines: boolean) => Promise<void>;
   resetToLobby: () => Promise<void>;
 };
 
@@ -26,23 +30,25 @@ export function HostView({ sessionId, sessionData, participants, showUrlSettings
   const [manualInviteUrl, setManualInviteUrl] = useState('');
   const { toast } = useToast();
 
+  const [useDisciplines, setUseDisciplines] = useState(false);
+  const [exclusionPairs, setExclusionPairs] = useState<{ p1: Participant; p2: Participant }[]>([]);
+  const [p1ToExclude, setP1ToExclude] = useState<string>('');
+  const [p2ToExclude, setP2ToExclude] = useState<string>('');
+
   useEffect(() => {
-    // Pre-fill the invite URL with the current full URL.
-    // This is a much better default for the user in the override modal.
     if (typeof window !== 'undefined') {
-      setManualInviteUrl(window.location.href);
+      const url = new URL(window.location.href);
+      url.searchParams.delete('host');
+      setManualInviteUrl(url.toString());
     }
   }, []);
 
   const getInviteUrl = () => {
     try {
-      // Use the manually set URL if available, otherwise default to current location.
       const url = new URL(manualInviteUrl || window.location.href);
-      // Remove the host parameter to create a clean student link.
       url.searchParams.delete('host');
       return url.toString();
     } catch (e) {
-      // Fallback for invalid URL format during editing
       return manualInviteUrl;
     }
   };
@@ -59,27 +65,41 @@ export function HostView({ sessionId, sessionData, participants, showUrlSettings
     });
   };
 
+  const handleAddExclusion = () => {
+    if (!p1ToExclude || !p2ToExclude || p1ToExclude === p2ToExclude) return;
+    const p1 = participants.find(p => p.id === p1ToExclude);
+    const p2 = participants.find(p => p.id === p2ToExclude);
+    if (p1 && p2 && !exclusionPairs.some(pair => (pair.p1.id === p1.id && pair.p2.id === p2.id) || (pair.p1.id === p2.id && pair.p2.id === p1.id))) {
+      setExclusionPairs([...exclusionPairs, { p1, p2 }]);
+    }
+    setP1ToExclude('');
+    setP2ToExclude('');
+  };
+
   const handleShuffle = async () => {
-    if (participants.length < 2) return;
+    if (participants.length < 2 || participants.length < groupCount) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Not enough participants to create the desired number of groups.' });
+      return;
+    }
     setIsAnimating(true);
     try {
-      await shuffleGroups(groupCount);
+      const exclusionIds = exclusionPairs.map(pair => ({ p1Id: pair.p1.id, p2Id: pair.p2.id }));
+      await shuffleGroups(groupCount, exclusionIds, useDisciplines);
     } catch (error) {
       console.error(error);
-      toast({ variant: 'destructive', title: 'Error', description: 'Failed to generate groups.' });
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to generate groups. The AI may have been unable to satisfy all constraints.' });
     } finally {
-        setTimeout(() => setIsAnimating(false), 500);
+      setTimeout(() => setIsAnimating(false), 500);
     }
   };
 
   const handleReset = async () => {
     await resetToLobby();
-  }
-  
+  };
+
   const inviteUrlForQr = useMemo(() => {
     return encodeURIComponent(getInviteUrl());
-  }, [manualInviteUrl, sessionId]);
-
+  }, [manualInviteUrl]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -93,7 +113,6 @@ export function HostView({ sessionId, sessionData, participants, showUrlSettings
       />
 
       <main className="max-w-7xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-12 gap-8 pb-20">
-        {/* Left Column */}
         <div className="lg:col-span-4 space-y-6">
           <div className="bg-card p-8 rounded-[2.5rem] shadow-xl border text-center relative overflow-hidden">
             <div className="absolute top-6 right-6 px-3 py-1 bg-primary/10 text-primary text-[10px] font-black rounded-full uppercase tracking-widest">Live</div>
@@ -106,7 +125,7 @@ export function HostView({ sessionId, sessionData, participants, showUrlSettings
                 width={200}
                 height={200}
                 className="rounded-xl"
-                key={inviteUrlForQr} // Add key to force re-render on URL change
+                key={inviteUrlForQr}
               />
               <div className="absolute inset-0 bg-background/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-3xl">
                 <span className="text-xs font-black text-foreground flex items-center gap-2"><LinkIcon className="w-4 h-4" /> COPY LINK</span>
@@ -115,30 +134,67 @@ export function HostView({ sessionId, sessionData, participants, showUrlSettings
 
             <div className="space-y-4">
               <div className="text-4xl font-black text-foreground font-mono tracking-widest">{sessionId}</div>
-              <Button
-                onClick={copyInvite}
-                variant={linkCopied ? 'default' : 'secondary'}
-                className="w-full py-3 px-4 rounded-xl text-xs font-bold transition-all border-2"
-              >
+              <Button onClick={copyInvite} variant={linkCopied ? 'default' : 'secondary'} className="w-full py-3 px-4 rounded-xl text-xs font-bold transition-all border-2">
                 {linkCopied ? 'LINK COPIED' : 'COPY INVITE URL'}
               </Button>
             </div>
           </div>
 
-          <div className="bg-card p-8 rounded-[2.5rem] shadow-xl border space-y-8">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-black text-muted-foreground uppercase tracking-widest font-headline">Groups Needed</span>
-              <span className="text-2xl font-black text-foreground">{groupCount}</span>
+          <div className="bg-card p-8 rounded-[2.5rem] shadow-xl border space-y-6">
+            <div>
+                <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-black text-muted-foreground uppercase tracking-widest font-headline">Groups Needed</span>
+                    <span className="text-2xl font-black text-foreground">{groupCount}</span>
+                </div>
+                <Input
+                    type="range"
+                    min="2"
+                    max={Math.max(2, Math.floor(participants.length / 2))}
+                    value={groupCount}
+                    onChange={(e) => setGroupCount(parseInt(e.target.value))}
+                    className="w-full accent-primary h-2 bg-secondary rounded-full appearance-none cursor-pointer"
+                    disabled={participants.length < 4}
+                />
             </div>
-            <Input
-              type="range"
-              min="2"
-              max={Math.max(2, Math.floor(participants.length / 2))}
-              value={groupCount}
-              onChange={(e) => setGroupCount(parseInt(e.target.value))}
-              className="w-full accent-primary h-2 bg-secondary rounded-full appearance-none cursor-pointer"
-              disabled={participants.length < 4}
-            />
+            <Separator />
+            <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                    <Label htmlFor="discipline-switch" className="text-sm font-black text-muted-foreground uppercase tracking-widest font-headline flex-grow">Balance by Discipline</Label>
+                    <Switch id="discipline-switch" checked={useDisciplines} onCheckedChange={setUseDisciplines} />
+                </div>
+            </div>
+            <Separator />
+            <div className="space-y-4">
+                <h4 className="text-sm font-black text-muted-foreground uppercase tracking-widest font-headline">Exclusion Rules</h4>
+                <div className="space-y-2 max-h-24 overflow-y-auto pr-2">
+                    {exclusionPairs.map((pair, index) => (
+                        <div key={index} className="flex items-center justify-between bg-secondary p-2 rounded-lg text-xs">
+                            <span className="font-semibold">{pair.p1.name} ≠ {pair.p2.name}</span>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setExclusionPairs(exclusionPairs.filter((_, i) => i !== index))}>
+                                <X className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    ))}
+                    {exclusionPairs.length === 0 && <p className="text-xs text-muted-foreground text-center py-2">No exclusion rules added.</p>}
+                </div>
+                <div className="flex gap-2 items-center">
+                    <Select value={p1ToExclude} onValueChange={setP1ToExclude}>
+                        <SelectTrigger className="text-xs"><SelectValue placeholder="Student 1" /></SelectTrigger>
+                        <SelectContent>
+                            {participants.filter(p => p.id !== p2ToExclude).map(p => <SelectItem key={p.id} value={p.id} className="text-xs">{p.name}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                    <span className="font-bold text-muted-foreground">≠</span>
+                    <Select value={p2ToExclude} onValueChange={setP2ToExclude}>
+                        <SelectTrigger className="text-xs"><SelectValue placeholder="Student 2" /></SelectTrigger>
+                        <SelectContent>
+                            {participants.filter(p => p.id !== p1ToExclude).map(p => <SelectItem key={p.id} value={p.id} className="text-xs">{p.name}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <Button variant="outline" className="w-full text-xs" onClick={handleAddExclusion} disabled={!p1ToExclude || !p2ToExclude || p1ToExclude === p2ToExclude}>Add Rule</Button>
+            </div>
+            <Separator />
             <Button
               onClick={handleShuffle}
               disabled={participants.length < 2 || isAnimating}
@@ -150,7 +206,6 @@ export function HostView({ sessionId, sessionData, participants, showUrlSettings
           </div>
         </div>
 
-        {/* Right Column */}
         <div className="lg:col-span-8">
           <div className="bg-card p-10 rounded-[2.5rem] shadow-xl border min-h-[600px]">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-12 border-b border-border pb-8">
@@ -203,11 +258,14 @@ export function HostView({ sessionId, sessionData, participants, showUrlSettings
                   participants.map((p, i) => (
                     <div 
                       key={p.id} 
-                      className="animate-in zoom-in slide-in-from-bottom-2 bg-card border px-5 py-3 rounded-2xl shadow-sm hover:shadow-md transition-all flex items-center gap-3"
+                      className="animate-in zoom-in slide-in-from-bottom-2 bg-card border px-4 py-2 rounded-2xl shadow-sm hover:shadow-md transition-all flex items-center gap-3"
                       style={{ animationDelay: `${i * 40}ms` }}
                     >
                       <span className="text-2xl">{p.avatar}</span>
-                      <span className="font-bold text-foreground">{p.name}</span>
+                      <div className="flex flex-col">
+                        <span className="font-bold text-foreground text-sm">{p.name}</span>
+                        {p.discipline && <span className="text-xs text-primary font-medium">{p.discipline}</span>}
+                      </div>
                     </div>
                   ))
                 )}
