@@ -1,6 +1,6 @@
 'use server';
 
-import { getAuth } from 'firebase/auth/';
+import { getAuth } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
