@@ -1,0 +1,102 @@
+{
+  "entities": {
+    "Session": {
+      "title": "Session",
+      "description": "Represents a grouping session.",
+      "type": "object",
+      "properties": {
+        "hostId": {
+          "type": "string",
+          "description": "The UID of the user who created the session."
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "lobby",
+            "grouped"
+          ],
+          "description": "The current status of the session."
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "The timestamp when the session was created."
+        },
+        "groups": {
+          "type": "array",
+          "description": "An array of groups, where each group is an array of participants.",
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/backend/entities/GroupMember"
+            }
+          }
+        }
+      },
+      "required": [
+        "hostId",
+        "status",
+        "createdAt"
+      ]
+    },
+    "GroupMember": {
+      "title": "Group Member",
+      "description": "A member within a generated group.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "avatar": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "avatar"
+      ]
+    },
+    "Participant": {
+      "title": "Participant",
+      "description": "A user who has joined a session.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The display name of the participant."
+        },
+        "avatar": {
+          "type": "string",
+          "description": "The emoji avatar selected by the participant."
+        },
+        "joinedAt": {
+          "type": "number",
+          "description": "The timestamp when the participant joined the session."
+        }
+      },
+      "required": [
+        "name",
+        "avatar",
+        "joinedAt"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "/artifacts/{appId}/public/{data}/sessions": {
+      "schema": {
+        "$ref": "#/backend/entities/Session"
+      },
+      "description": "Stores all session data."
+    },
+    "/artifacts/{appId}/public/{data}/sessions/{sessionId}/participants": {
+      "schema": {
+        "$ref": "#/backend/entities/Participant"
+      },
+      "description": "Stores participants for a specific session."
+    }
+  }
+}
