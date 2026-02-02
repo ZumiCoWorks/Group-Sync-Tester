@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Navbar } from '@/components/shared/navbar';
 import { useRouter } from 'next/navigation';
 import { doc, setDoc } from 'firebase/firestore';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { useState } from 'react';
 
 const appId = process.env.NEXT_PUBLIC_APP_ID || 'varsity-group-pro';
@@ -14,26 +14,36 @@ const appId = process.env.NEXT_PUBLIC_APP_ID || 'varsity-group-pro';
 export default function Home() {
   const router = useRouter();
   const db = useFirestore();
+  const { user, isUserLoading } = useUser();
   const [isCreating, setIsCreating] = useState(false);
 
-  const createSession = async () => {
-    if (!db) return;
+  const createSession = () => {
+    if (!db || !user) return;
     setIsCreating(true);
     const newId = Math.random().toString(36).substring(2, 8).toUpperCase();
     const sessionRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', newId);
 
-    try {
-      await setDoc(sessionRef, {
-        hostId: 'pending',
-        status: 'lobby',
-        createdAt: Date.now(),
-        groups: [],
+    const sessionData = {
+      id: newId,
+      hostId: user.uid,
+      status: 'lobby',
+      createdAt: Date.now(),
+      groups: [],
+    };
+
+    setDoc(sessionRef, sessionData)
+      .then(() => {
+        router.push(`/room/${newId}?host=true`);
+      })
+      .catch((serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: sessionRef.path,
+          operation: 'create',
+          requestResourceData: sessionData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        setIsCreating(false);
       });
-      router.push(`/room/${newId}?host=true`);
-    } catch (error) {
-      console.error("Failed to create session:", error);
-      setIsCreating(false);
-    }
   };
 
 
@@ -52,7 +62,7 @@ export default function Home() {
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Button
               onClick={createSession}
-              disabled={isCreating}
+              disabled={isCreating || isUserLoading}
               size="lg"
               className="w-full sm:w-auto px-10 py-7 bg-foreground text-background rounded-full font-bold text-lg hover:bg-foreground/90 transition-all flex items-center justify-center gap-3 shadow-2xl shadow-slate-200 dark:shadow-slate-900"
             >

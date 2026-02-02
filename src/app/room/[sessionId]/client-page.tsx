@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { doc, onSnapshot, collection, setDoc, updateDoc, getDocs } from 'firebase/firestore';
-import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import type { Session, Participant } from '@/lib/types';
 import { HostView } from '@/components/room/host-view';
 import { StudentJoinForm } from '@/components/room/student-join-form';
@@ -36,14 +36,6 @@ export default function ClientPage({ sessionId, isHost }: ClientPageProps) {
   const isLoading = isSessionLoading || areParticipantsLoading || isUserLoading;
   
   useEffect(() => {
-    if (!user || !sessionId || !sessionRef || !sessionData) return;
-    
-    if(isHost && sessionData?.hostId === 'pending') {
-        setDoc(sessionRef, { hostId: user.uid }, { merge: true });
-    }
-  }, [user, sessionId, isHost, sessionData, sessionRef]);
-
-  useEffect(() => {
     if (user && participants?.some(p => p.id === user.uid)) {
         setIsJoined(true);
     }
@@ -54,15 +46,28 @@ export default function ClientPage({ sessionId, isHost }: ClientPageProps) {
   const joinSession = async (name: string, avatar: string) => {
     if (!user || !db) return;
     const participantRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', sessionId, 'participants', user.uid);
-    await setDoc(participantRef, {
+    const participantData = {
       id: user.uid,
       sessionId: sessionId,
       name,
       avatar,
       joinedAt: Date.now(),
-    });
-    setStudentName(name);
-    setIsJoined(true);
+    };
+    
+    return setDoc(participantRef, participantData)
+      .then(() => {
+        setStudentName(name);
+        setIsJoined(true);
+      })
+      .catch((serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: participantRef.path,
+          operation: 'create',
+          requestResourceData: participantData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        throw serverError;
+      });
   };
 
   const shuffleGroups = async (groupCount: number) => {
@@ -75,17 +80,36 @@ export default function ClientPage({ sessionId, isHost }: ClientPageProps) {
       newGroups[index % groupCount].push({ name: p.name, avatar: p.avatar });
     });
 
-    await updateDoc(sessionRef, {
+    const updateData = {
       status: 'grouped',
       groups: newGroups,
+    };
+
+    return updateDoc(sessionRef, updateData).catch((serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: sessionRef.path,
+            operation: 'update',
+            requestResourceData: updateData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        throw serverError;
     });
   };
 
   const resetToLobby = async () => {
     if (!sessionRef) return;
-    await updateDoc(sessionRef, {
+    const updateData = {
       status: 'lobby',
       groups: []
+    };
+    return updateDoc(sessionRef, updateData).catch((serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: sessionRef.path,
+            operation: 'update',
+            requestResourceData: updateData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        throw serverError;
     });
   };
 
