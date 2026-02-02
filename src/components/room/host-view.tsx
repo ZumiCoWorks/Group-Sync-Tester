@@ -23,16 +23,28 @@ export function HostView({ sessionId, sessionData, participants, showUrlSettings
   const [groupCount, setGroupCount] = useState(3);
   const [isAnimating, setIsAnimating] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
-  const [manualBaseUrl, setManualBaseUrl] = useState('');
+  const [manualInviteUrl, setManualInviteUrl] = useState('');
   const { toast } = useToast();
 
   useEffect(() => {
-    setManualBaseUrl(window.location.origin + window.location.pathname.replace(/\/~.*$/, ''));
+    // Pre-fill the invite URL with the current full URL.
+    // This is a much better default for the user in the override modal.
+    if (typeof window !== 'undefined') {
+      setManualInviteUrl(window.location.href);
+    }
   }, []);
 
   const getInviteUrl = () => {
-    const base = manualBaseUrl || (window.location.origin);
-    return `${base.replace(/\/room\/.*$/, '')}/room/${sessionId}`;
+    try {
+      // Use the manually set URL if available, otherwise default to current location.
+      const url = new URL(manualInviteUrl || window.location.href);
+      // Remove the host parameter to create a clean student link.
+      url.searchParams.delete('host');
+      return url.toString();
+    } catch (e) {
+      // Fallback for invalid URL format during editing
+      return manualInviteUrl;
+    }
   };
 
   const copyInvite = () => {
@@ -63,6 +75,11 @@ export function HostView({ sessionId, sessionData, participants, showUrlSettings
   const handleReset = async () => {
     await resetToLobby();
   }
+  
+  const inviteUrlForQr = useMemo(() => {
+    return encodeURIComponent(getInviteUrl());
+  }, [manualInviteUrl, sessionId]);
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -71,8 +88,8 @@ export function HostView({ sessionId, sessionData, participants, showUrlSettings
       <UrlOverrideModal
         isOpen={showUrlSettings}
         onClose={() => setShowUrlSettings(false)}
-        manualBaseUrl={manualBaseUrl}
-        setManualBaseUrl={setManualBaseUrl}
+        manualInviteUrl={manualInviteUrl}
+        setManualInviteUrl={setManualInviteUrl}
       />
 
       <main className="max-w-7xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-12 gap-8 pb-20">
@@ -84,11 +101,12 @@ export function HostView({ sessionId, sessionData, participants, showUrlSettings
 
             <div className="bg-secondary p-4 rounded-3xl inline-block border-2 mb-6 group cursor-pointer relative" onClick={copyInvite}>
               <Image
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(getInviteUrl())}&color=0f172a&bgcolor=f9fafb`}
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${inviteUrlForQr}&color=0f172a&bgcolor=f9fafb`}
                 alt="QR Code for joining session"
                 width={200}
                 height={200}
                 className="rounded-xl"
+                key={inviteUrlForQr} // Add key to force re-render on URL change
               />
               <div className="absolute inset-0 bg-background/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-3xl">
                 <span className="text-xs font-black text-foreground flex items-center gap-2"><LinkIcon className="w-4 h-4" /> COPY LINK</span>
