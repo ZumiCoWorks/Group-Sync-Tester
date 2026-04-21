@@ -7,7 +7,15 @@ export interface ParseResult {
     success: boolean;
     participants: UploadedParticipant[];
     error?: string;
+    summary?: {
+        totalDataRows: number;
+        parsedRows: number;
+        omittedDuplicateRows: number;
+        omittedMissingNameRows: number;
+    };
 }
+
+type CellRow = any[];
 
 /**
  * Find column index by matching against multiple possible names
@@ -48,111 +56,7 @@ export function parseXLSXFile(file: File): Promise<ParseResult> {
 
                 // Convert to JSON
                 const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
-
-                if (jsonData.length < 2) {
-                    resolve({ success: false, participants: [], error: 'File must contain at least a header row and one data row' });
-                    return;
-                }
-
-                // Auto-detect header row by finding the row with the most non-empty cells
-                // This handles cases where row 1 might be a title like "BCOM Y2 CLASSLIST 2026"
-                let headerRowIndex = 0;
-                let maxNonEmptyCells = 0;
-
-                for (let i = 0; i < Math.min(10, jsonData.length); i++) {
-                    const row = jsonData[i];
-                    const nonEmptyCells = row.filter((cell: any) => cell !== null && cell !== undefined && cell !== '').length;
-
-                    // Header row typically has many columns
-                    if (nonEmptyCells > maxNonEmptyCells && nonEmptyCells >= 3) {
-                        maxNonEmptyCells = nonEmptyCells;
-                        headerRowIndex = i;
-                    }
-                }
-
-                console.log(`Auto-detected header row at index ${headerRowIndex} (row ${headerRowIndex + 1})`);
-
-                // Get headers and normalize them
-                const headers = jsonData[headerRowIndex].map((h: any) => String(h).toLowerCase().trim());
-                console.log('Detected headers:', headers);
-
-                // Find column indices for various possible column names
-                const nameIndex = findColumnIndex(headers, ['name', 'first name', 'firstname', 'given name']);
-                const surnameIndex = findColumnIndex(headers, ['surname', 'last name', 'lastname', 'family name']);
-                const disciplineIndex = findColumnIndex(headers, ['programme', 'program', 'discipline', 'major', 'course', 'school']);
-                const studentNumberIndex = findColumnIndex(headers, ['student number', 'student id', 'id number', 'student no', 'snumber']);
-
-                console.log('Column indices:', { nameIndex, surnameIndex, disciplineIndex, studentNumberIndex });
-
-                // Name is required - either as a single column or Name + Surname
-                if (nameIndex === -1 && surnameIndex === -1) {
-                    console.error('No name or surname column found. Headers:', headers);
-                    resolve({
-                        success: false,
-                        participants: [],
-                        error: `File must contain at least a "Name" column or "Name" and "Surname" columns. Found columns: ${headers.join(', ')}`
-                    });
-                    return;
-                }
-
-                // Parse participants (start from row after header)
-                const dataStartRow = headerRowIndex + 1;
-                const participants: UploadedParticipant[] = [];
-                const seenIdentifiers = new Set<string>();
-
-                for (let i = dataStartRow; i < jsonData.length; i++) {
-                    const row = jsonData[i];
-
-                    // Skip completely empty rows
-                    if (!row || row.every((cell: any) => !cell || String(cell).trim() === '')) {
-                        continue;
-                    }
-
-                    // Build full name
-                    let fullName = '';
-                    if (nameIndex !== -1 && row[nameIndex]) {
-                        fullName = String(row[nameIndex]).trim();
-                    }
-                    if (surnameIndex !== -1 && row[surnameIndex]) {
-                        const surname = String(row[surnameIndex]).trim();
-                        fullName = fullName ? `${fullName} ${surname}` : surname;
-                    }
-
-                    // Skip if no name
-                    if (!fullName) {
-                        continue;
-                    }
-
-                    // Create unique identifier (prefer student number, fallback to name)
-                    let identifier = fullName;
-                    if (studentNumberIndex !== -1 && row[studentNumberIndex]) {
-                        identifier = String(row[studentNumberIndex]).trim();
-                    }
-
-                    // Skip duplicates
-                    if (seenIdentifiers.has(identifier)) {
-                        continue;
-                    }
-                    seenIdentifiers.add(identifier);
-
-                    const participant: UploadedParticipant = {
-                        name: fullName,
-                    };
-
-                    // Add discipline/programme if available
-                    if (disciplineIndex !== -1 && row[disciplineIndex]) {
-                        participant.discipline = String(row[disciplineIndex]).trim();
-                    }
-
-                    participants.push(participant);
-                }
-
-                if (participants.length === 0) {
-                    resolve({ success: false, participants: [], error: 'No valid participants found in file' });
-                    return;
-                }
-
-                resolve({ success: true, participants });
+                resolve(parseParticipantsFromRows(jsonData));
             } catch (error) {
                 console.error('Error parsing XLSX:', error);
                 resolve({ success: false, participants: [], error: 'Failed to parse file. Please ensure it is a valid XLSX file.' });
@@ -165,6 +69,181 @@ export function parseXLSXFile(file: File): Promise<ParseResult> {
 
         reader.readAsBinaryString(file);
     });
+}
+
+/**
+ * Parse a CSV file and extract participant data using the same rules as XLSX parsing
+ */
+export function parseCSVFile(file: File): Promise<ParseResult> {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+            try {
+                const data = e.target?.result;
+                if (typeof data !== 'string') {
+                    resolve({ success: false, participants: [], error: 'Failed to read file' });
+                    return;
+                }
+
+                const workbook = XLSX.read(data, { type: 'string' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+                resolve(parseParticipantsFromRows(jsonData));
+            } catch (error) {
+                console.error('Error parsing CSV:', error);
+                resolve({ success: false, participants: [], error: 'Failed to parse file. Please ensure it is a valid CSV file.' });
+            }
+        };
+
+        reader.onerror = () => {
+            resolve({ success: false, participants: [], error: 'Failed to read file' });
+        };
+
+        reader.readAsText(file);
+    });
+}
+
+/**
+ * Parse a participant file by extension (.xlsx, .xls, .csv)
+ */
+export function parseParticipantFile(file: File): Promise<ParseResult> {
+    const extension = file.name.split('.').pop()?.toLowerCase();
+
+    if (extension === 'csv') {
+        return parseCSVFile(file);
+    }
+
+    if (extension === 'xlsx' || extension === 'xls') {
+        return parseXLSXFile(file);
+    }
+
+    return Promise.resolve({
+        success: false,
+        participants: [],
+        error: 'Unsupported file type. Please upload a CSV, XLSX, or XLS file.',
+    });
+}
+
+function parseParticipantsFromRows(jsonData: CellRow[]): ParseResult {
+    if (jsonData.length < 2) {
+        return { success: false, participants: [], error: 'File must contain at least a header row and one data row' };
+    }
+
+    // Auto-detect header row by finding the row with the most non-empty cells.
+    // This handles files where row 1 is a title like "BCOM Y2 CLASSLIST 2026".
+    let headerRowIndex = 0;
+    let maxNonEmptyCells = 0;
+
+    for (let i = 0; i < Math.min(10, jsonData.length); i++) {
+        const row = jsonData[i];
+        const nonEmptyCells = row.filter((cell: any) => cell !== null && cell !== undefined && cell !== '').length;
+
+        if (nonEmptyCells > maxNonEmptyCells && nonEmptyCells >= 3) {
+            maxNonEmptyCells = nonEmptyCells;
+            headerRowIndex = i;
+        }
+    }
+
+    console.log(`Auto-detected header row at index ${headerRowIndex} (row ${headerRowIndex + 1})`);
+
+    // Get headers and normalize them
+    const headers = jsonData[headerRowIndex].map((h: any) => String(h).toLowerCase().trim());
+    console.log('Detected headers:', headers);
+
+    // Find column indices for various possible column names
+    const nameIndex = findColumnIndex(headers, ['name', 'first name', 'firstname', 'given name']);
+    const surnameIndex = findColumnIndex(headers, ['surname', 'last name', 'lastname', 'family name']);
+    const disciplineIndex = findColumnIndex(headers, ['programme', 'program', 'discipline', 'major', 'course', 'school']);
+    const studentNumberIndex = findColumnIndex(headers, ['student number', 'student id', 'id number', 'student no', 'snumber']);
+
+    console.log('Column indices:', { nameIndex, surnameIndex, disciplineIndex, studentNumberIndex });
+
+    // Name is required - either as a single column or Name + Surname
+    if (nameIndex === -1 && surnameIndex === -1) {
+        console.error('No name or surname column found. Headers:', headers);
+        return {
+            success: false,
+            participants: [],
+            error: `File must contain at least a "Name" column or "Name" and "Surname" columns. Found columns: ${headers.join(', ')}`,
+        };
+    }
+
+    // Parse participants (start from row after header)
+    const dataStartRow = headerRowIndex + 1;
+    const participants: UploadedParticipant[] = [];
+    const seenIdentifiers = new Set<string>();
+    let totalDataRows = 0;
+    let omittedDuplicateRows = 0;
+    let omittedMissingNameRows = 0;
+
+    for (let i = dataStartRow; i < jsonData.length; i++) {
+        const row = jsonData[i];
+
+        // Skip completely empty rows
+        if (!row || row.every((cell: any) => !cell || String(cell).trim() === '')) {
+            continue;
+        }
+        totalDataRows++;
+
+        // Build full name
+        let fullName = '';
+        if (nameIndex !== -1 && row[nameIndex]) {
+            fullName = String(row[nameIndex]).trim();
+        }
+        if (surnameIndex !== -1 && row[surnameIndex]) {
+            const surname = String(row[surnameIndex]).trim();
+            fullName = fullName ? `${fullName} ${surname}` : surname;
+        }
+
+        // Skip if no name
+        if (!fullName) {
+            omittedMissingNameRows++;
+            continue;
+        }
+
+        // Dedupe by student number when present, otherwise fallback to full name.
+        let identifier = fullName;
+        if (studentNumberIndex !== -1 && row[studentNumberIndex]) {
+            const studentNumber = String(row[studentNumberIndex]).trim();
+            if (studentNumber) {
+                identifier = studentNumber;
+            }
+        }
+
+        if (seenIdentifiers.has(identifier)) {
+            omittedDuplicateRows++;
+            continue;
+        }
+        seenIdentifiers.add(identifier);
+
+        const participant: UploadedParticipant = {
+            name: fullName,
+        };
+
+        // Add discipline/programme if available
+        if (disciplineIndex !== -1 && row[disciplineIndex]) {
+            participant.discipline = String(row[disciplineIndex]).trim();
+        }
+
+        participants.push(participant);
+    }
+
+    if (participants.length === 0) {
+        return { success: false, participants: [], error: 'No valid participants found in file' };
+    }
+
+    return {
+        success: true,
+        participants,
+        summary: {
+            totalDataRows,
+            parsedRows: participants.length,
+            omittedDuplicateRows,
+            omittedMissingNameRows,
+        },
+    };
 }
 
 /**

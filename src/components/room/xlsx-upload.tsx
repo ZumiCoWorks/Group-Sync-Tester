@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Upload, Users, X, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FileUpload } from '@/components/ui/file-upload';
-import { parseXLSXFile, validateParticipants, getRandomAvatar } from '@/lib/xlsx-parser';
+import { parseParticipantFile, validateParticipants, getRandomAvatar } from '@/lib/xlsx-parser';
 import { UploadedParticipant } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -28,7 +28,7 @@ export function XLSXUpload({ onUpload, isOpen, onClose }: XLSXUploadProps) {
     const { toast } = useToast();
 
     const handleFileSelect = async (file: File) => {
-        const result = await parseXLSXFile(file);
+        const result = await parseParticipantFile(file);
 
         if (!result.success) {
             toast({
@@ -50,9 +50,26 @@ export function XLSXUpload({ onUpload, isOpen, onClose }: XLSXUploadProps) {
         }
 
         setParticipants(result.participants);
+
+        const omittedDuplicateRows = result.summary?.omittedDuplicateRows ?? 0;
+        const omittedMissingNameRows = result.summary?.omittedMissingNameRows ?? 0;
+        const omittedTotal = omittedDuplicateRows + omittedMissingNameRows;
+
+        let description = `Found ${result.participants.length} participants`;
+        if (omittedTotal > 0) {
+            const reasons: string[] = [];
+            if (omittedDuplicateRows > 0) {
+                reasons.push(`${omittedDuplicateRows} duplicate row${omittedDuplicateRows === 1 ? '' : 's'}`);
+            }
+            if (omittedMissingNameRows > 0) {
+                reasons.push(`${omittedMissingNameRows} row${omittedMissingNameRows === 1 ? '' : 's'} without a name`);
+            }
+            description += `. Omitted ${omittedTotal} row${omittedTotal === 1 ? '' : 's'}: ${reasons.join(', ')}`;
+        }
+
         toast({
             title: 'File Parsed Successfully',
-            description: `Found ${result.participants.length} participants`,
+            description,
         });
     };
 
@@ -88,7 +105,7 @@ export function XLSXUpload({ onUpload, isOpen, onClose }: XLSXUploadProps) {
                 <DialogHeader>
                     <DialogTitle className="text-2xl font-black">Upload Class List</DialogTitle>
                     <DialogDescription>
-                        Upload an XLSX file with your class list. Supported columns include:{' '}
+                        Upload a CSV or XLSX file with your class list. Supported columns include:{' '}
                         <span className="font-semibold">Name</span>, <span className="font-semibold">Surname</span>,{' '}
                         <span className="font-semibold">Programme</span>, <span className="font-semibold">Student Number</span>, etc.
                         <br />
@@ -100,7 +117,7 @@ export function XLSXUpload({ onUpload, isOpen, onClose }: XLSXUploadProps) {
 
                 <div className="space-y-6">
                     {participants.length === 0 ? (
-                        <FileUpload onFileSelect={handleFileSelect} accept=".xlsx,.xls" maxSizeMB={5} />
+                        <FileUpload onFileSelect={handleFileSelect} accept=".csv,.xlsx,.xls" maxSizeMB={5} />
                     ) : (
                         <div className="space-y-4">
                             <div className="flex items-center justify-between p-4 bg-primary/10 rounded-xl border border-primary/20">
