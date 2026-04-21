@@ -86,6 +86,14 @@ export default function Home() {
           >
             <Link href="/join">Join as Student</Link>
           </Button>
+          <Button
+            asChild
+            size="lg"
+            variant="outline"
+            className="w-full sm:w-auto px-10 py-7 bg-transparent text-foreground border-2 border-foreground rounded-full font-bold text-lg hover:bg-foreground/5 transition-all"
+          >
+            <Link href="/worksuite">Open AFDA Worksuite</Link>
+          </Button>
         </div>
 
         <div className="mt-24 grid grid-cols-1 md:grid-cols-3 gap-8 text-left border-t pt-12">
