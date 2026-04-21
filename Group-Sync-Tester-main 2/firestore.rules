@@ -1,0 +1,141 @@
+/**
+ * # Firestore Security Rules: GroupSync Application
+ *
+ * ## Core Philosophy
+ * This ruleset enforces a security model centered around session ownership and participation.
+ * A session "host" has full control over the session document, while "participants" can join
+ * or leave sessions. The rules are designed to be secure by default, ensuring users can only
+ * perform actions they are explicitly authorized for.
+ *
+ * ## Data Structure
+ * The data is organized under a main collection path:
+ * `/artifacts/{appId}/public/data/sessions/{sessionId}`
+ *
+ * - A top-level `sessions` collection stores all session documents.
+ * - Each session document contains a nested `participants` subcollection.
+ *
+ * ## Key Security Decisions
+ * - **Public Readability**: Session and participant data is publicly readable to allow users to discover and join sessions easily. The path includes `/public/` to make this intent clear.
+ * - **Host as Owner**: The user who creates a session (the "host") is the sole owner and is the only one who can modify or delete the session document. This is managed by a denormalized `hostId` field on the session document.
+ * - **Participant Self-Management**: Users can join a session by creating their own participant document. They can also update their own participant info or leave the session (delete their document).
+ * - **Host Moderation**: The session host is granted permission to remove (delete) any participant from their session, providing essential moderation capabilities.
+ * - **No User Listing**: There is no top-level `/users` collection, which prevents any possibility of listing all application users.
+ *
+ * ## Denormalization for Authorization
+ * - **`hostId` on Session**: Each `/sessions/{sessionId}` document contains a `hostId` field. This avoids a costly `get()` call to another collection to verify ownership, making session write rules fast and efficient.
+ * - **No Membership Maps**: Simple ownership (`hostId`) and participation (existence of a participant document) are used instead of complex membership maps, aligning with the app's straightforward access model.
+ *
+ * ## Structural Segregation
+ * - Sessions and participants are stored in distinct collections (`sessions` and the `participants` subcollection). This separation creates a clear, hierarchical structure that simplifies rule logic, especially for list operations.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ----------------------------------------------------------------------
+    // Helper Functions
+    // ----------------------------------------------------------------------
+
+    /**
+     * Checks if the user is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * Checks if the authenticated user's UID matches the provided userId.
+     * This is the fundamental check for ownership.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * Checks for ownership on an existing document.
+     * CRITICAL: Used for all update and delete operations to prevent modifying
+     * or deleting documents that don't exist.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+
+    /**
+     * Checks if the requesting user is the host of the parent session.
+     * Requires a 'get' call to the parent session document to check the 'hostId'.
+     * This is used to grant hosts moderation privileges over participants.
+     */
+    function isSessionHost(appId, sessionId) {
+      return isSignedIn() && get(/databases/$(database)/documents/artifacts/$(appId)/public/data/sessions/$(sessionId)).data.hostId == request.auth.uid;
+    }
+
+    /**
+     * Ensures the new session's ID in the document body matches the document ID in the path.
+     * This enforces relational integrity from the moment of creation.
+     */
+    function hasValidNewSessionData(sessionId) {
+      return request.resource.data.id == sessionId;
+    }
+
+    /**
+     * Enforces immutability for critical session fields upon update.
+     * Prevents re-assigning a session's ID or its host.
+     */
+    function isImmutableSessionFields() {
+      return request.resource.data.id == resource.data.id && request.resource.data.hostId == resource.data.hostId;
+    }
+
+    /**
+     * Ensures a new participant document is correctly linked to its own ID and the parent session ID.
+     */
+    function hasValidNewParticipantData(sessionId, participantId) {
+      return request.resource.data.id == participantId && request.resource.data.sessionId == sessionId;
+    }
+
+    /**
+     * Enforces immutability for critical participant fields upon update.
+     * Prevents a participant from being moved to another session or changing their ID.
+     */
+    function isImmutableParticipantFields() {
+      return request.resource.data.id == resource.data.id && request.resource.data.sessionId == resource.data.sessionId;
+    }
+
+
+    // ----------------------------------------------------------------------
+    // Collection Rules
+    // ----------------------------------------------------------------------
+
+    /**
+     * @description Rules for the `sessions` collection. Sessions are public to read, but only the host (owner) can create, update, or delete them.
+     * @path /artifacts/{appId}/public/data/sessions/{sessionId}
+     * @allow (get) Any user, authenticated or not, can read a session document.
+     * @allow (create) An authenticated user can create a new session if they set themselves as the `hostId`.
+     * @deny (update) A user cannot update a session if they are not the `hostId`.
+     * @deny (delete) A user cannot delete a session created by another user.
+     * @principle Public Read with Owner-Only Writes. This allows for public discovery while maintaining strict author control.
+     */
+    match /artifacts/{appId}/public/data/sessions/{sessionId} {
+      allow get, list: if true;
+      allow create: if isOwner(request.resource.data.hostId) && hasValidNewSessionData(sessionId);
+      allow update: if isExistingOwner(resource.data.hostId) && isImmutableSessionFields();
+      allow delete: if isExistingOwner(resource.data.hostId);
+    }
+
+    /**
+     * @description Rules for the `participants` subcollection. Participants are public to read. A user can add/remove themselves, and the session host can remove any participant.
+     * @path /artifacts/{appId}/public/data/sessions/{sessionId}/participants/{participantId}
+     * @allow (create) An authenticated user can join a session by creating a participant document with their own UID as the document ID.
+     * @allow (delete) A participant can leave a session (delete their own participant document).
+     * @allow (delete) The session host can kick a participant (delete their participant document).
+     * @deny (create) A user cannot add another user to a session.
+     * @deny (update) A participant cannot update another participant's document.
+     * @principle Shared Access Control. Access is granted based on two roles: the document owner (the participant themselves) and a related resource owner (the session host).
+     */
+    match /artifacts/{appId}/public/data/sessions/{sessionId}/participants/{participantId} {
+      allow get, list: if true;
+      allow create: if isOwner(participantId) && hasValidNewParticipantData(sessionId, participantId);
+      allow update: if isExistingOwner(participantId) && isImmutableParticipantFields();
+      allow delete: if resource != null && (isOwner(participantId) || isSessionHost(appId, sessionId));
+    }
+  }
+}

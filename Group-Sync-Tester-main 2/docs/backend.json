@@ -1,0 +1,147 @@
+{
+  "entities": {
+    "Session": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Session",
+      "type": "object",
+      "description": "Represents a session where students are grouped.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the session."
+        },
+        "hostId": {
+          "type": "string",
+          "description": "Reference to User who is hosting the session. (Relationship: User 1:N Session)"
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the session (e.g., lobby, grouped)."
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "Timestamp indicating when the session was created."
+        },
+        "groups": {
+          "type": "array",
+          "description": "Array of groups within the session. Each group contains an array of participants.",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "hostId",
+        "status",
+        "createdAt",
+        "groups"
+      ]
+    },
+    "Participant": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Participant",
+      "type": "object",
+      "description": "Represents a participant in a session.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the participant (same as User ID)."
+        },
+        "sessionId": {
+          "type": "string",
+          "description": "Reference to Session that the participant is in. (Relationship: Session 1:N Participant)"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the participant."
+        },
+        "avatar": {
+          "type": "string",
+          "description": "Avatar of the participant."
+        },
+        "joinedAt": {
+          "type": "number",
+          "description": "Timestamp indicating when the participant joined the session."
+        }
+      },
+      "required": [
+        "id",
+        "sessionId",
+        "name",
+        "avatar",
+        "joinedAt"
+      ]
+    },
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user."
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "artifacts/{appId}/public/data/sessions/{sessionId}",
+        "definition": {
+          "entityName": "Session",
+          "schema": {
+            "$ref": "#/backend/entities/Session"
+          },
+          "description": "Stores session data, including the host ID, status, creation timestamp, and group assignments. The 'hostId' field is denormalized for authorization independence.",
+          "params": [
+            {
+              "name": "appId",
+              "description": "The unique identifier for the application."
+            },
+            {
+              "name": "sessionId",
+              "description": "The unique identifier for the session."
+            }
+          ]
+        }
+      },
+      {
+        "path": "artifacts/{appId}/public/data/sessions/{sessionId}/participants/{participantId}",
+        "definition": {
+          "entityName": "Participant",
+          "schema": {
+            "$ref": "#/backend/entities/Participant"
+          },
+          "description": "Stores participant data within a session, including the participant's name, avatar, and join timestamp.",
+          "params": [
+            {
+              "name": "appId",
+              "description": "The unique identifier for the application."
+            },
+            {
+              "name": "sessionId",
+              "description": "The unique identifier for the session."
+            },
+            {
+              "name": "participantId",
+              "description": "The unique identifier for the participant (same as User ID)."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to support the GroupSync application's features, focusing on session management, participant tracking, and group assignments. The structure is optimized for real-time updates and efficient data retrieval while adhering to the principles of Authorization Independence, Clarity of Intent, DBAC (Database-Based Access Control), and QAPs (Rules are not Filters). \n\n**Authorization Independence:**\n*   The `sessions` collection stores session metadata, including `hostId`. The `hostId` is denormalized from the `User` entity to the `Session` entity, enabling session creation without needing to read the user document.\n*   The `participants` subcollection under each session contains participant details. This eliminates the need to perform `get()` calls to determine the host or participant details during session or participant creation, facilitating atomic operations.\n\n**Structural Segregation & QAPs:**\n*   The app uses a dedicated collection `artifacts/{appId}/public/data/sessions/{sessionId}` for sessions and `artifacts/{appId}/public/data/sessions/{sessionId}/participants/{participantId}` for participants. This structural segregation enables straightforward security rules that can efficiently secure list operations.\n*   Path-based ownership is leveraged for securing user-related data. The sessions are not directly nested under users but contain the `hostId` attribute for easy querying. This approach makes the data easily queryable and scalable.\n\n**Access Modeling:**\n*   Path-based ownership is used for managing sessions and participants. The `/sessions/{sessionId}` path contains session data, and the `/sessions/{sessionId}/participants/{participantId}` path contains participant data within a session.\n*   No membership maps are used as this app has a simple ownership and participation structure.\n\n**Data Clarity and Predictability:**\n*   Explicit state modeling is used with the `status` field in the `Session` entity, clearly indicating the session's state (e.g., 'lobby', 'grouped').\n*   The schema for each entity (`Session`, `Participant`, `User`) is clearly defined, promoting consistency and predictability."
+  }
+}
