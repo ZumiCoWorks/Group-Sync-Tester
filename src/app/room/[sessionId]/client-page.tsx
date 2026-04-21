@@ -57,7 +57,7 @@ export default function ClientPage({ sessionId, isHost }: ClientPageProps) {
     if (!isHost && sessionData?.status === 'ended') {
       // Give a brief moment for the UI to update before redirecting
       const timer = setTimeout(() => {
-        router.push('/');
+        router.push('/group-sync');
       }, 3000);
       return () => clearTimeout(timer);
     }

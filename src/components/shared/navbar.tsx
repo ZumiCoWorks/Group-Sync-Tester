@@ -11,7 +11,7 @@ export function Navbar({ showSettingsButton = false, onSettingsClick }: NavbarPr
   return (
     <header className="py-6 px-4">
       <nav className="flex items-center justify-between max-w-7xl mx-auto">
-        <Link href="/" className="flex items-center gap-2 cursor-pointer">
+        <Link href="/group-sync" className="flex items-center gap-2 cursor-pointer">
           <div className="w-8 h-8 bg-foreground rounded flex items-center justify-center">
             <Terminal className="w-5 h-5 text-primary" />
           </div>
@@ -20,6 +20,11 @@ export function Navbar({ showSettingsButton = false, onSettingsClick }: NavbarPr
           </span>
         </Link>
         <div className="flex items-center gap-2">
+          <Link href="/">
+            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground transition-colors font-bold">
+              Apps
+            </Button>
+          </Link>
           <Link href="/history">
             <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground transition-colors font-bold">
               History

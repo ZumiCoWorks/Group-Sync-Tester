@@ -48,7 +48,7 @@ export default function JoinInputPage() {
                 ENTER LOBBY
               </Button>
               <Button variant="link" asChild className="w-full text-muted-foreground text-sm font-bold mt-2">
-                <Link href="/">Cancel</Link>
+                <Link href="/group-sync">Cancel</Link>
               </Button>
             </form>
           </CardContent>

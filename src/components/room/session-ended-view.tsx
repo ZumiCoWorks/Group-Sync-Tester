@@ -36,7 +36,7 @@ export function SessionEndedView({ sessionId }: SessionEndedViewProps) {
                     </div>
 
                     <Button
-                        onClick={() => router.push('/')}
+                        onClick={() => router.push('/group-sync')}
                         size="lg"
                         className="w-full py-6 font-bold text-lg"
                     >

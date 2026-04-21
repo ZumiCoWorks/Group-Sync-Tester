@@ -24,7 +24,7 @@ export default function HistoryPage() {
 
     useEffect(() => {
         if (!isUserLoading && !user) {
-            router.push('/');
+            router.push('/group-sync');
             return;
         }
 
@@ -112,7 +112,7 @@ export default function HistoryPage() {
                 <div className="mb-8">
                     <Button
                         variant="ghost"
-                        onClick={() => router.push('/')}
+                        onClick={() => router.push('/group-sync')}
                         className="mb-4"
                     >
                         <ArrowLeft className="w-4 h-4 mr-2" />

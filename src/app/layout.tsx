@@ -5,8 +5,8 @@ import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 
 export const metadata: Metadata = {
-  title: 'GroupSync',
-  description: 'Group students effortlessly.',
+  title: 'AFDA Workspace',
+  description: 'Launch Group Sync, Worksuite, and other AFDA tools from a unified app directory.',
 };
 
 export default function RootLayout({
