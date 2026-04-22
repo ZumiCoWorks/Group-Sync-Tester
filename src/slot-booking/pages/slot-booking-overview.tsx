@@ -5,23 +5,18 @@ import { CalendarClock, UserRoundCheck, Users } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
-export function WorksuiteSlotsPage() {
+export function SlotBookingOverviewPage() {
   return (
-    <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-      <Card className="border-border bg-card p-6 text-card-foreground shadow-xl md:p-8">
-        <p className="inline-flex rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs uppercase tracking-[0.28em] text-primary">
-          Student Booking Slots
-        </p>
-        <h2 className="mt-4 text-4xl font-black tracking-tight text-foreground md:text-5xl">Lecturer + Student flow, split by role.</h2>
+    <section className="grid gap-6 lg:grid-cols-[1.12fr_0.88fr]">
+      <Card className="border-border bg-card p-6 text-card-foreground shadow-2xl shadow-orange-500/5 md:p-8">
+        <p className="inline-flex rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs uppercase tracking-[0.28em] text-primary">AFDA App / Learning</p>
+        <h2 className="mt-4 text-4xl font-black tracking-tight text-foreground md:text-5xl">Student Booking Slots</h2>
         <p className="mt-4 max-w-2xl text-base text-muted-foreground md:text-lg">
-          This app has two role views: lecturers create assessment slots, and students claim one slot each. Slots gray out instantly once claimed.
+          This app separates lecturer slot creation from student reservation into two focused lanes.
         </p>
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
-          <Link
-            href="/worksuite/tutor"
-            className="group rounded-2xl border border-border bg-secondary/30 p-4 transition-colors hover:border-primary/50"
-          >
+          <Link href="/slot-booking/tutor" className="group rounded-2xl border border-border bg-secondary/30 p-4 transition-colors hover:border-primary/50">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-primary/30 bg-primary/10 text-primary">
               <CalendarClock className="h-5 w-5" />
             </div>
@@ -30,10 +25,7 @@ export function WorksuiteSlotsPage() {
             <p className="mt-4 text-sm font-semibold text-primary">Open lecturer flow</p>
           </Link>
 
-          <Link
-            href="/worksuite/student"
-            className="group rounded-2xl border border-border bg-secondary/30 p-4 transition-colors hover:border-primary/50"
-          >
+          <Link href="/slot-booking/student" className="group rounded-2xl border border-border bg-secondary/30 p-4 transition-colors hover:border-primary/50">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-primary/30 bg-primary/10 text-primary">
               <UserRoundCheck className="h-5 w-5" />
             </div>
@@ -44,7 +36,7 @@ export function WorksuiteSlotsPage() {
         </div>
       </Card>
 
-      <Card className="border-border bg-card p-6 text-card-foreground">
+      <Card className="border-border bg-card p-6 text-card-foreground shadow-2xl shadow-orange-500/5">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-primary/30 bg-primary/10 text-primary">
             <Users className="h-5 w-5" />
@@ -68,10 +60,10 @@ export function WorksuiteSlotsPage() {
 
         <div className="mt-6 flex flex-wrap gap-3">
           <Button asChild className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90">
-            <Link href="/worksuite/tutor">Lecturer flow</Link>
+            <Link href="/slot-booking/tutor">Lecturer flow</Link>
           </Button>
           <Button asChild variant="outline" className="rounded-full border-border bg-background text-foreground hover:bg-secondary">
-            <Link href="/worksuite/student">Student flow</Link>
+            <Link href="/slot-booking/student">Student flow</Link>
           </Button>
         </div>
       </Card>

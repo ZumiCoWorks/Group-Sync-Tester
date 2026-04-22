@@ -160,7 +160,7 @@ export function useWorksuiteStore(currentUser?: WorksuiteUser | null) {
     slotId: string;
     studentName: string;
     studentEmail: string;
-    tutor: WorksuiteUser;
+    tutor: { email: string };
   }) => {
     const slot = snapshot.slots.find((entry) => entry.id === payload.slotId);
     if (!slot) {

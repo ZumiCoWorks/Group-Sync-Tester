@@ -21,16 +21,16 @@ const appTiles: AppTile[] = [
   },
   {
     title: 'Venue Booking',
-    roles: 'Operations / Lecturer / Student',
+    roles: 'Operations only',
     description: 'Import registrar venue schedules and publish read-only occupancy timelines.',
-    href: '/worksuite/ops',
+    href: '/venue-booking',
     icon: <Building2 className="h-6 w-6" />,
   },
   {
     title: 'Student Booking Slots',
     roles: 'Lecturer / Student',
     description: 'Generate tutor slots and let students claim exactly one slot in real time.',
-    href: '/worksuite/slots',
+    href: '/slot-booking',
     icon: <CalendarClock className="h-6 w-6" />,
   },
 ];
@@ -38,8 +38,8 @@ const appTiles: AppTile[] = [
 const shortcuts = [
   { label: 'Directory', href: '/' },
   { label: 'Grouping', href: '/group-sync' },
-  { label: 'Venue Booking', href: '/worksuite/ops' },
-  { label: 'Booking Slots', href: '/worksuite/slots' },
+  { label: 'Venue Booking', href: '/venue-booking' },
+  { label: 'Booking Slots', href: '/slot-booking' },
 ];
 
 export const metadata = {
@@ -91,7 +91,7 @@ export default function Home() {
                 </Link>
               </Button>
               <Button asChild variant="outline" className="rounded-full border-white/25 bg-transparent px-6 py-6 text-white hover:bg-white/10">
-                <Link href="/worksuite/ops">Open Venue Booking</Link>
+                <Link href="/venue-booking">Open Venue Booking</Link>
               </Button>
             </div>
 
@@ -137,8 +137,8 @@ export default function Home() {
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 <MiniShortcut label="Join Grouping Session" href="/join" />
                 <MiniShortcut label="Grouping History" href="/history" />
-                <MiniShortcut label="Worksuite Directory" href="/worksuite" />
-                <MiniShortcut label="Slot Booking" href="/worksuite/slots" />
+                <MiniShortcut label="Venue Booking" href="/venue-booking" />
+                <MiniShortcut label="Slot Booking" href="/slot-booking" />
               </div>
             </div>
           </div>
