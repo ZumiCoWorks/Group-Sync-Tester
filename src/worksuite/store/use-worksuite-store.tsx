@@ -2,10 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useFirestore } from '@/firebase';
-import { CalendarService } from '../services/calendar-service';
 import { buildVenueRecords, parseVenueSpreadsheet, autoMapVenueColumns } from '../services/spreadsheet';
 import { mockWorksuiteSnapshot } from '../mock-data';
-import { WORKSUITE_DEV_MODE } from '../config';
+import { WORKSUITE_DEV_MODE, isLocked } from '../config';
 import {
   AuditRecord,
   BookingRecord,
@@ -16,7 +15,9 @@ import {
   WorksuiteSnapshot,
   WorksuiteUser,
 } from '../types';
-import { appendAuditEntry, loadWorksuiteSnapshot, saveWorksuiteSnapshot, syncSnapshotToFirestore } from '../services/persistence';
+import { createCalendarBookingEvent } from '@/lib/calendarService';
+import { doc, runTransaction } from 'firebase/firestore';
+import { loadWorksuiteSnapshot, saveWorksuiteSnapshot, syncSnapshotToFirestore, worksuiteAuditsRef, worksuiteBookingsRef, worksuiteRootRef, worksuiteSlotsRef } from '../services/persistence';
 
 function createId(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 8)}`.toLowerCase();
@@ -29,6 +30,10 @@ function createAudit(action: string, message: string): AuditRecord {
     message,
     createdAt: Date.now(),
   };
+}
+
+function normalizeEmail(email: string) {
+  return email.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
 }
 
 function ensureSnapshot(snapshot: WorksuiteSnapshot | null): WorksuiteSnapshot {
@@ -102,6 +107,10 @@ export function useWorksuiteStore(currentUser?: WorksuiteUser | null) {
     durationMinutes: number;
     slotCount: number;
   }) => {
+    if (isLocked(payload.date)) {
+      throw new Error('Schedule changes for the upcoming week are locked after Thursday 14:00.');
+    }
+
     const venue = snapshot.venues.find((item) => item.id === payload.venueId || item.venueId === payload.venueId);
     if (!venue) {
       throw new Error('Venue not found');
@@ -158,45 +167,93 @@ export function useWorksuiteStore(currentUser?: WorksuiteUser | null) {
       throw new Error('Slot not found');
     }
 
-    if (snapshot.bookings.some((entry) => entry.studentEmail.toLowerCase() === payload.studentEmail.toLowerCase())) {
-      throw new Error('This student already has a booking. One student may only claim one slot.');
+    const bookingId = normalizeEmail(payload.studentEmail);
+    const auditRecord = createAudit('slot-book', `${payload.studentName} booked ${slot.venueName}`);
+
+    let booking: BookingRecord | null = null;
+
+    if (!WORKSUITE_DEV_MODE && db) {
+      const slotRef = doc(worksuiteSlotsRef(db), slot.id);
+      const bookingRef = doc(worksuiteBookingsRef(db), bookingId);
+
+      await runTransaction(db, async (transaction) => {
+        const slotSnapshot = await transaction.get(slotRef);
+        if (!slotSnapshot.exists() || slotSnapshot.data().status === 'booked') {
+          throw new Error('This slot was just taken.');
+        }
+
+        const bookingSnapshot = await transaction.get(bookingRef);
+        if (bookingSnapshot.exists()) {
+          throw new Error('This student already has a booking. One student may only claim one slot.');
+        }
+
+        booking = {
+          id: bookingId,
+          slotId: slot.id,
+          venueId: slot.venueId,
+          venueName: slot.venueName,
+          studentName: payload.studentName,
+          studentEmail: payload.studentEmail,
+          tutorName: slot.tutorName,
+          date: slot.date,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          bookedAt: Date.now(),
+          calendarStatus: 'synced',
+        };
+
+        transaction.set(slotRef, {
+          ...slotSnapshot.data(),
+          status: 'booked',
+          bookedBy: payload.studentName,
+          bookedByEmail: payload.studentEmail,
+          bookingId,
+        });
+        transaction.set(bookingRef, booking);
+        transaction.set(doc(worksuiteAuditsRef(db), auditRecord.id), auditRecord);
+        transaction.set(worksuiteRootRef(db), { updatedAt: Date.now(), namespace: 'ws_', module: 'worksuite' }, { merge: true });
+      });
+    } else {
+      booking = {
+        id: bookingId,
+        slotId: slot.id,
+        venueId: slot.venueId,
+        venueName: slot.venueName,
+        studentName: payload.studentName,
+        studentEmail: payload.studentEmail,
+        tutorName: slot.tutorName,
+        date: slot.date,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        bookedAt: Date.now(),
+        calendarStatus: 'mocked',
+      };
     }
 
-    if (slot.status === 'booked') {
-      throw new Error('This slot is already booked.');
+    if (!booking) {
+      throw new Error('Booking failed');
     }
 
-    const booking: BookingRecord = {
-      id: createId('booking'),
-      slotId: slot.id,
-      venueId: slot.venueId,
-      venueName: slot.venueName,
-      studentName: payload.studentName,
-      studentEmail: payload.studentEmail,
-      tutorName: slot.tutorName,
-      date: slot.date,
-      startTime: slot.startTime,
-      endTime: slot.endTime,
-      bookedAt: Date.now(),
-      calendarStatus: WORKSUITE_DEV_MODE ? 'mocked' : 'synced',
-    };
+    const confirmedBooking = booking;
 
     const nextSnapshot: WorksuiteSnapshot = {
       venues: snapshot.venues,
-      slots: snapshot.slots.map((entry) => (entry.id === slot.id ? { ...entry, status: 'booked', bookedBy: payload.studentName, bookedByEmail: payload.studentEmail } : entry)),
-      bookings: [booking, ...snapshot.bookings],
-      audits: [createAudit('slot-book', `${payload.studentName} booked ${slot.venueName}`), ...snapshot.audits],
+      slots: snapshot.slots.map((entry) => (entry.id === slot.id ? { ...entry, status: 'booked', bookedBy: payload.studentName, bookedByEmail: payload.studentEmail, bookingId } : entry)),
+      bookings: [confirmedBooking, ...snapshot.bookings.filter((entry) => entry.id !== confirmedBooking.id)],
+      audits: [auditRecord, ...snapshot.audits],
     };
 
     setSnapshot(nextSnapshot);
     saveWorksuiteSnapshot(nextSnapshot);
 
-    const calendarService = new CalendarService(db);
-    await calendarService.createBookingEvent({ slot, booking, tutor: payload.tutor });
-
-    if (!WORKSUITE_DEV_MODE && db) {
-      await syncSnapshotToFirestore(db, nextSnapshot);
-    }
+    await createCalendarBookingEvent(
+      payload.tutor.email,
+      payload.studentEmail,
+      slot.venueName,
+      `${slot.date} ${slot.startTime}`,
+      `${slot.date} ${slot.endTime}`,
+      db,
+    );
 
     return booking;
   };

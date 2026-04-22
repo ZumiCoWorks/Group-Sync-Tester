@@ -4,6 +4,12 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { WORKSUITE_DEV_MODE, WORKSUITE_ROLE_KEY } from '../config';
 import { WorksuiteMode, WorksuiteRole, WorksuiteUser } from '../types';
 
+const ROLE_DEFAULTS: Record<WorksuiteRole, { displayName: string; email: string }> = {
+  operations: { displayName: 'Nomsa Operations', email: 'ops@afda.local' },
+  staff: { displayName: 'Daisy Tutor', email: 'tutor@afda.local' },
+  student: { displayName: 'Nandi Student', email: 'student@afda.local' },
+};
+
 type WorksuiteAuthContextValue = {
   user: WorksuiteUser;
   mode: WorksuiteMode;
@@ -18,7 +24,7 @@ function buildMockUser(role: WorksuiteRole, displayName: string): WorksuiteUser 
   return {
     id: `${role}-${displayName.toLowerCase().replace(/\s+/g, '-')}`,
     displayName,
-    email: role === 'staff' ? 'ops@afda.local' : 'student@afda.local',
+    email: ROLE_DEFAULTS[role].email,
     role,
     mode: 'mock',
     venueScope: 'AFDA Worksuite',
@@ -26,16 +32,16 @@ function buildMockUser(role: WorksuiteRole, displayName: string): WorksuiteUser 
 }
 
 export function WorksuiteAuthProvider({ children }: { children: React.ReactNode }) {
-  const [role, setRoleState] = useState<WorksuiteRole>('staff');
-  const [displayName, setDisplayNameState] = useState('Daisy Ops');
+  const [role, setRoleState] = useState<WorksuiteRole>('operations');
+  const [displayName, setDisplayNameState] = useState(ROLE_DEFAULTS.operations.displayName);
 
   useEffect(() => {
     if (!WORKSUITE_DEV_MODE) return;
 
     const savedRole = window.localStorage.getItem(WORKSUITE_ROLE_KEY) as WorksuiteRole | null;
-    if (savedRole === 'staff' || savedRole === 'student') {
+    if (savedRole === 'operations' || savedRole === 'staff' || savedRole === 'student') {
       setRoleState(savedRole);
-      setDisplayNameState(savedRole === 'staff' ? 'Daisy Ops' : 'Nandi Student');
+      setDisplayNameState(ROLE_DEFAULTS[savedRole].displayName);
     }
   }, []);
 
@@ -51,7 +57,7 @@ export function WorksuiteAuthProvider({ children }: { children: React.ReactNode 
           id: 'azure-placeholder',
           displayName: 'Microsoft Auth Pending',
           email: 'pending@afda.ac.za',
-          role: 'staff',
+          role: 'operations',
           mode: 'connected',
           venueScope: 'AFDA Worksuite',
         };
@@ -63,7 +69,7 @@ export function WorksuiteAuthProvider({ children }: { children: React.ReactNode 
       setRole: (nextRole: WorksuiteRole) => {
         if (!WORKSUITE_DEV_MODE) return;
         setRoleState(nextRole);
-        setDisplayNameState(nextRole === 'staff' ? 'Daisy Ops' : 'Nandi Student');
+        setDisplayNameState(ROLE_DEFAULTS[nextRole].displayName);
       },
       setDisplayName: (nextDisplayName: string) => {
         if (!WORKSUITE_DEV_MODE) return;

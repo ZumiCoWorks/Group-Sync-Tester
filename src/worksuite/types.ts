@@ -1,4 +1,4 @@
-export type WorksuiteRole = 'staff' | 'student';
+export type WorksuiteRole = 'operations' | 'staff' | 'student';
 export type WorksuiteMode = 'mock' | 'connected';
 
 export type WorksuiteUser = {
@@ -44,6 +44,7 @@ export type SlotRecord = {
   status: 'open' | 'booked';
   bookedBy?: string;
   bookedByEmail?: string;
+  bookingId?: string;
   createdAt: number;
 };
 

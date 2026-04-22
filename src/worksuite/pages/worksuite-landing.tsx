@@ -22,10 +22,10 @@ export function WorksuiteLandingPage() {
           Phase 1 | Mock Integration
         </p>
         <h2 className="max-w-3xl text-4xl font-black tracking-tight md:text-6xl">
-          AFDA Worksuite hosts two apps: Venue Booking and Student Booking Slots.
+          AFDA Worksuite hosts three lanes: Venue Booking, Lecturer Slots, and Student Booking.
         </h2>
         <p className="mt-5 max-w-2xl text-lg text-white/85 md:text-xl">
-          Keep operations and assessments coordinated: import registrar venues in one app, then create tutor slots and allow one-student-one-slot claims in the second app.
+          Keep operations and assessments coordinated: import registrar venues in one app, create tutor slots in the next, then let students claim exactly one slot each.
         </p>
 
         <div className="mt-8 grid gap-4 sm:grid-cols-3">

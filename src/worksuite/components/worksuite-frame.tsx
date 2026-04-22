@@ -14,6 +14,12 @@ const NAV_ITEMS = [
   { href: '/worksuite/slots', label: 'Booking Slots' },
 ];
 
+const ROLE_LABELS: Record<string, string> = {
+  operations: 'Operations',
+  staff: 'Lecturer',
+  student: 'Student',
+};
+
 export function WorksuiteFrame({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, canToggleRole, setRole, setDisplayName } = useWorksuiteAuth();
@@ -64,7 +70,7 @@ export function WorksuiteFrame({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
-            <Badge className="rounded-full bg-primary px-3 py-1 text-primary-foreground hover:bg-primary">{user.role.toUpperCase()}</Badge>
+            <Badge className="rounded-full bg-primary px-3 py-1 text-primary-foreground hover:bg-primary">{ROLE_LABELS[user.role] ?? user.role.toUpperCase()}</Badge>
             <Badge variant="outline" className="rounded-full border-border px-3 py-1 text-foreground">
               {user.displayName}
             </Badge>
@@ -73,13 +79,16 @@ export function WorksuiteFrame({ children }: { children: React.ReactNode }) {
             </Badge>
             {canToggleRole && (
               <div className="flex items-center gap-2">
+                <Button size="sm" variant="outline" className="rounded-full border-border bg-background text-foreground hover:bg-secondary" onClick={() => setRole('operations')}>
+                  Operations
+                </Button>
                 <Button size="sm" variant="outline" className="rounded-full border-border bg-background text-foreground hover:bg-secondary" onClick={() => setRole('staff')}>
                   Staff
                 </Button>
                 <Button size="sm" variant="outline" className="rounded-full border-border bg-background text-foreground hover:bg-secondary" onClick={() => setRole('student')}>
                   Student
                 </Button>
-                <Button size="sm" variant="ghost" className="rounded-full text-muted-foreground hover:bg-secondary" onClick={() => setDisplayName(user.role === 'staff' ? 'Daisy Ops' : 'Nandi Student')}>
+                <Button size="sm" variant="ghost" className="rounded-full text-muted-foreground hover:bg-secondary" onClick={() => setDisplayName(user.role === 'operations' ? 'Nomsa Operations' : user.role === 'staff' ? 'Daisy Tutor' : 'Nandi Student')}>
                   Reset name
                 </Button>
               </div>

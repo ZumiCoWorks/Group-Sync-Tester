@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { FileUpload } from '@/components/ui/file-upload';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { getLockoutCopy, isScheduleLocked } from '../config';
+import { WorksuiteRoleGuard } from '../components/role-guard';
 import { useWorksuiteStore } from '../store/use-worksuite-store';
 import { VenueColumnKey } from '../types';
 import { autoMapVenueColumns } from '../services/spreadsheet';
@@ -50,7 +51,12 @@ export function WorksuiteOpsPage() {
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+    <WorksuiteRoleGuard
+      allowedRoles={['operations']}
+      title="Venue Booking is reserved for Operations"
+      description="Only Operations may import venue spreadsheets and manage the ws_venues collection. Switch into the operations role to continue."
+    >
+      <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
       <Card className="border-border bg-card p-6 text-card-foreground backdrop-blur-xl">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -171,7 +177,8 @@ export function WorksuiteOpsPage() {
           <p className="mt-3 text-xs text-muted-foreground">Mock mode stays local-first and is safe to demo without Microsoft sign-in.</p>
         </Card>
       </div>
-    </div>
+      </div>
+    </WorksuiteRoleGuard>
   );
 }
 

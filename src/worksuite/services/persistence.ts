@@ -27,12 +27,28 @@ export function saveWorksuiteSnapshot(snapshot: WorksuiteSnapshot) {
   window.localStorage.setItem(WORKSUITE_STORAGE_KEY, JSON.stringify(snapshot));
 }
 
-function worksuiteRootRef(db: Firestore) {
+export function worksuiteRootRef(db: Firestore) {
   return doc(db, WORKSUITE_ROOT_COLLECTION, WORKSUITE_ROOT_DOC);
 }
 
-function worksuiteCollectionRef(db: Firestore, collectionName: string) {
+export function worksuiteCollectionRef(db: Firestore, collectionName: string) {
   return collection(db, WORKSUITE_ROOT_COLLECTION, WORKSUITE_ROOT_DOC, `${WORKSUITE_PREFIX}${collectionName}`);
+}
+
+export function worksuiteVenuesRef(db: Firestore) {
+  return worksuiteCollectionRef(db, 'venues');
+}
+
+export function worksuiteSlotsRef(db: Firestore) {
+  return worksuiteCollectionRef(db, 'slots');
+}
+
+export function worksuiteBookingsRef(db: Firestore) {
+  return worksuiteCollectionRef(db, 'bookings');
+}
+
+export function worksuiteAuditsRef(db: Firestore) {
+  return worksuiteCollectionRef(db, 'audits');
 }
 
 export async function syncSnapshotToFirestore(db: Firestore, snapshot: WorksuiteSnapshot) {

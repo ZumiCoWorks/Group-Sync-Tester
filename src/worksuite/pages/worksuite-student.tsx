@@ -14,8 +14,8 @@ import { useWorksuiteStore } from '../store/use-worksuite-store';
 export function WorksuiteStudentPage() {
   const { user } = useWorksuiteAuth();
   const store = useWorksuiteStore(user);
-  const [studentName, setStudentName] = useState(user.role === 'student' ? user.displayName : '');
-  const [studentEmail, setStudentEmail] = useState(user.role === 'student' ? user.email : '');
+  const [studentName, setStudentName] = useState(user.displayName);
+  const [studentEmail, setStudentEmail] = useState(user.email);
   const [message, setMessage] = useState('');
 
   const openSlots = useMemo(() => store.slots.filter((slot) => slot.status === 'open'), [store.slots]);

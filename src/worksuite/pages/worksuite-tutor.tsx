@@ -8,14 +8,14 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { getLockoutCopy, isScheduleLocked } from '../config';
+import { getLockoutCopy, isLocked } from '../config';
 import { useWorksuiteAuth } from '../auth/worksuite-auth';
+import { WorksuiteRoleGuard } from '../components/role-guard';
 import { useWorksuiteStore } from '../store/use-worksuite-store';
 
 export function WorksuiteTutorPage() {
   const { user } = useWorksuiteAuth();
   const store = useWorksuiteStore(user);
-  const locked = isScheduleLocked();
   const [venueId, setVenueId] = useState(store.venues[0]?.id || '');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [startTime, setStartTime] = useState('09:00');
@@ -23,6 +23,7 @@ export function WorksuiteTutorPage() {
   const [slotCount, setSlotCount] = useState(6);
   const [tutorName, setTutorName] = useState(user.displayName);
   const [statusMessage, setStatusMessage] = useState('');
+  const locked = isLocked(date);
 
   const venue = store.venues.find((item) => item.id === venueId || item.venueId === venueId) || store.venues[0];
   const venueSlots = useMemo(() => store.slots.filter((slot) => slot.venueId === venue?.id), [store.slots, venue?.id]);
@@ -41,8 +42,13 @@ export function WorksuiteTutorPage() {
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-      <Card className="border-white/10 bg-white/5 p-6 text-white backdrop-blur-xl">
+    <WorksuiteRoleGuard
+      allowedRoles={['staff']}
+      title="Lecturer slot creation is reserved for Staff"
+      description="Only the lecturer view may generate assessment slots. Switch into the staff role to continue."
+    >
+      <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+        <Card className="border-white/10 bg-white/5 p-6 text-white backdrop-blur-xl">
         <p className="text-xs uppercase tracking-[0.3em] text-white/45">Tutor Assessment Suite</p>
         <h2 className="mt-2 text-3xl font-black">Slot Generator</h2>
         <p className="mt-3 text-sm text-white/70">Tutors select a venue, define the duration, and generate bookable assessment windows.</p>
@@ -108,7 +114,7 @@ export function WorksuiteTutorPage() {
         </div>
       </Card>
 
-      <Card className="border-white/10 bg-white/5 p-6 text-white backdrop-blur-xl">
+        <Card className="border-white/10 bg-white/5 p-6 text-white backdrop-blur-xl">
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-xs uppercase tracking-[0.3em] text-white/45">Live Slots</p>
@@ -136,7 +142,8 @@ export function WorksuiteTutorPage() {
             {!venueSlots.length && <p className="text-sm text-white/55">No slots created yet.</p>}
           </div>
         </ScrollArea>
-      </Card>
-    </div>
+        </Card>
+      </div>
+    </WorksuiteRoleGuard>
   );
 }
