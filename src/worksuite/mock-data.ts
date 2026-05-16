@@ -34,7 +34,9 @@ export const mockWorksuiteSnapshot: WorksuiteSnapshot = {
       importedAt: now,
     },
   ],
+  slotBatches: [],
   slots: [],
   bookings: [],
+  delegations: [],
   audits: [auditSeed],
 };

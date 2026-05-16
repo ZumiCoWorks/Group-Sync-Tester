@@ -13,7 +13,8 @@ export class CalendarService {
 
   async createBookingEvent(payload: CalendarServicePayload) {
     return createCalendarBookingEvent(
-      payload.tutor.email,
+      payload.booking.ownerEmail || payload.slot.ownerEmail || payload.tutor.email,
+      payload.booking.studentName,
       payload.booking.studentEmail,
       payload.slot.venueName,
       `${payload.slot.date} ${payload.slot.startTime}`,

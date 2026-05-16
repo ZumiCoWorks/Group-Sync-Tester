@@ -2,19 +2,23 @@ import type { Firestore } from 'firebase/firestore';
 import { addDoc } from 'firebase/firestore';
 import { WORKSUITE_DEV_MODE } from '@/worksuite/config';
 import { worksuiteAuditsRef } from '@/worksuite/services/persistence';
+import type { CalComBookingInput } from '@/lib/calcom';
+import { normalizeCalComBookingResponse } from '@/lib/calcom';
 
 export type CalendarServiceResult = {
   id: string;
-  provider: 'mock' | 'graph-ready';
+  provider: 'mock' | 'cal.com' | 'microsoft-graph';
   tutorEmail: string;
   studentEmail: string;
-  venueName: string;
+  locationLabel: string;
   startTime: string;
   endTime: string;
   subject: string;
   summary: string;
   attendees: Array<{ email: string; role: 'organizer' | 'required' }>;
   createdAt: number;
+  bookingUrl?: string | null;
+  meetingUrl?: string | null;
 };
 
 function createCalendarEventId() {
@@ -23,22 +27,133 @@ function createCalendarEventId() {
 
 export async function createCalendarBookingEvent(
   tutorEmail: string,
+  studentName: string,
   studentEmail: string,
-  venueName: string,
+  locationLabel: string,
   startTime: string,
   endTime: string,
   db?: Firestore | null,
 ): Promise<CalendarServiceResult> {
+  const graphEnabled = Boolean(process.env.AZURE_AD_CLIENT_ID && process.env.AZURE_AD_CLIENT_SECRET && process.env.AZURE_AD_TENANT_ID);
+  const calEnabled = String(process.env.NEXT_PUBLIC_CAL_ENABLED || 'false').toLowerCase() === 'true';
+
+  if (graphEnabled) {
+    const [date, start] = startTime.split(' ');
+    const [, end] = endTime.split(' ');
+
+    try {
+      const response = await fetch('/api/graph/bookings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tutorEmail,
+          studentName,
+          studentEmail,
+          locationLabel,
+          locationMode: /\bonline\b|teams|microsoft teams/i.test(locationLabel) ? 'custom' : 'allocated',
+          date,
+          startTime: start,
+          endTime: end,
+          timeZone: process.env.CAL_TIME_ZONE || 'Africa/Johannesburg',
+        }),
+      });
+
+      if (response.ok) {
+        const parsed = await response.json();
+        const booking = parsed.booking ?? parsed;
+
+        return {
+          id: booking.uid,
+          provider: booking.provider,
+          tutorEmail,
+          studentEmail,
+          locationLabel,
+          startTime,
+          endTime,
+          subject: booking.subject,
+          summary: `Slot owner ${tutorEmail} and student ${studentEmail} at ${locationLabel}`,
+          attendees: [
+            { email: tutorEmail, role: 'organizer' },
+            { email: studentEmail, role: 'required' },
+          ],
+          createdAt: Date.now(),
+          bookingUrl: booking.bookingUrl,
+          meetingUrl: booking.meetingUrl,
+        };
+      }
+
+      if (response.status !== 503) {
+        const errorText = await response.text();
+        throw new Error(errorText || 'Microsoft Graph booking failed');
+      }
+    } catch (error) {
+      console.warn('[calendarService] Microsoft Graph booking failed, falling back:', error);
+    }
+  }
+
+  if (calEnabled) {
+    const [date, start] = startTime.split(' ');
+    const [, end] = endTime.split(' ');
+    const payload: CalComBookingInput = {
+      tutorEmail,
+      studentName,
+      studentEmail,
+      locationLabel,
+      locationMode: /\bonline\b|teams|microsoft teams/i.test(locationLabel) ? 'custom' : 'allocated',
+      date,
+      startTime: start,
+      endTime: end,
+      timeZone: process.env.CAL_TIME_ZONE || 'Africa/Johannesburg',
+    };
+
+    const response = await fetch('/api/calcom/bookings', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || 'Cal.com booking failed');
+    }
+
+    const parsed = await response.json();
+    const booking = normalizeCalComBookingResponse(parsed.booking ?? parsed);
+
+    return {
+      id: booking.uid,
+      provider: booking.provider,
+      tutorEmail,
+      studentEmail,
+      locationLabel,
+      startTime,
+      endTime,
+      subject: booking.subject,
+      summary: `Slot owner ${tutorEmail} and student ${studentEmail} at ${locationLabel}`,
+      attendees: [
+        { email: tutorEmail, role: 'organizer' },
+        { email: studentEmail, role: 'required' },
+      ],
+      createdAt: Date.now(),
+      bookingUrl: booking.bookingUrl,
+      meetingUrl: booking.meetingUrl,
+    };
+  }
+
   const event: CalendarServiceResult = {
     id: createCalendarEventId(),
-    provider: WORKSUITE_DEV_MODE ? 'mock' : 'graph-ready',
+    provider: 'mock',
     tutorEmail,
     studentEmail,
-    venueName,
+    locationLabel,
     startTime,
     endTime,
-    subject: `${venueName} booking`,
-    summary: `Tutor ${tutorEmail} and student ${studentEmail} at ${venueName}`,
+    subject: `${locationLabel} booking`,
+    summary: `Slot owner ${tutorEmail} and student ${studentEmail} at ${locationLabel}`,
     attendees: [
       { email: tutorEmail, role: 'organizer' },
       { email: studentEmail, role: 'required' },
@@ -50,7 +165,7 @@ export async function createCalendarBookingEvent(
     await addDoc(worksuiteAuditsRef(db), {
       id: createCalendarEventId(),
       action: 'calendar-sync',
-      message: `Prepared calendar event for ${venueName}`,
+      message: `Prepared calendar event for ${locationLabel}`,
       createdAt: Date.now(),
     });
   }

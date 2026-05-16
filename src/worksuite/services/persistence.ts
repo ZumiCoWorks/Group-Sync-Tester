@@ -1,6 +1,24 @@
 import { addDoc, collection, doc, Firestore, setDoc, writeBatch } from 'firebase/firestore';
 import { WORKSUITE_ROOT_COLLECTION, WORKSUITE_ROOT_DOC, WORKSUITE_PREFIX, WORKSUITE_STORAGE_KEY } from '../config';
-import { AuditRecord, BookingRecord, SlotRecord, VenueRecord, WorksuiteSnapshot } from '../types';
+import { AuditRecord, BookingRecord, DelegationRecord, SlotBatch, SlotRecord, VenueRecord, WorksuiteSnapshot } from '../types';
+
+function stripUndefined<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((entry) => stripUndefined(entry)) as T;
+  }
+
+  if (value && typeof value === 'object') {
+    const cleaned = Object.entries(value as Record<string, unknown>).reduce<Record<string, unknown>>((acc, [key, entry]) => {
+      if (entry !== undefined) {
+        acc[key] = stripUndefined(entry);
+      }
+      return acc;
+    }, {});
+    return cleaned as T;
+  }
+
+  return value;
+}
 
 export function loadWorksuiteSnapshot(): WorksuiteSnapshot | null {
   if (typeof window === 'undefined') {
@@ -43,6 +61,14 @@ export function worksuiteSlotsRef(db: Firestore) {
   return worksuiteCollectionRef(db, 'slots');
 }
 
+export function worksuiteSlotBatchesRef(db: Firestore) {
+  return worksuiteCollectionRef(db, 'slotBatches');
+}
+
+export function worksuiteDelegationsRef(db: Firestore) {
+  return worksuiteCollectionRef(db, 'delegations');
+}
+
 export function worksuiteBookingsRef(db: Firestore) {
   return worksuiteCollectionRef(db, 'bookings');
 }
@@ -61,17 +87,19 @@ export async function syncSnapshotToFirestore(db: Firestore, snapshot: Worksuite
     module: 'worksuite',
   }, { merge: true });
 
-  const collections: Array<[string, Array<VenueRecord | SlotRecord | BookingRecord | AuditRecord>]> = [
+  const collections: Array<[string, Array<VenueRecord | SlotBatch | SlotRecord | BookingRecord | DelegationRecord | AuditRecord>]> = [
     ['venues', snapshot.venues],
+    ['slotBatches', snapshot.slotBatches as SlotBatch[]],
     ['slots', snapshot.slots],
     ['bookings', snapshot.bookings],
+    ['delegations', snapshot.delegations as DelegationRecord[]],
     ['audits', snapshot.audits],
   ];
 
   collections.forEach(([name, records]) => {
     records.forEach((record) => {
       const ref = doc(worksuiteCollectionRef(db, name), record.id);
-      batch.set(ref, record, { merge: true });
+      batch.set(ref, stripUndefined(record), { merge: true });
     });
   });
 

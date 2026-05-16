@@ -62,10 +62,10 @@ export function DemoProvider({ children }: { children: ReactNode }) {
             console.warn('AI grouping failed, using random shuffle fallback', error);
 
             const shuffled = [...participants].sort(() => Math.random() - 0.5);
-            const newGroups: { name: string; avatar: string }[][] = Array.from({ length: groupCount }, () => []);
+            const newGroups: Group[] = Array.from({ length: groupCount }, () => ({ members: [] }));
 
             shuffled.forEach((p, index) => {
-                newGroups[index % groupCount].push({ name: p.name, avatar: p.avatar });
+                newGroups[index % groupCount].members.push({ name: p.name, avatar: p.avatar });
             });
 
             setSession(prev => ({

@@ -6,6 +6,9 @@ export default {
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/slot-booking/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/venue-booking/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/worksuite/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
     extend: {

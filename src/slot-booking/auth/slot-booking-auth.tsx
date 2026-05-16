@@ -1,72 +1,56 @@
 'use client';
 
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useMemo } from 'react';
+import { usePathname } from 'next/navigation';
+import type { Session } from 'next-auth';
+import { resolveDisplayName } from '@/lib/afda-auth';
+import { resolveSurfaceRole } from '@/worksuite/authority';
 
-export type SlotBookingRole = 'staff' | 'student';
+export type SlotBookingRole = 'operations' | 'lecturer' | 'tutor' | 'student';
 
 type SlotBookingUser = {
   id: string;
   displayName: string;
   email: string;
   role: SlotBookingRole;
-  mode: 'mock';
+  mode: 'connected';
 };
 
 type SlotBookingAuthContextValue = {
   user: SlotBookingUser;
-  mode: 'mock';
-  canToggleRole: true;
-  setRole: (role: SlotBookingRole) => void;
-  setDisplayName: (displayName: string) => void;
-};
-
-const ROLE_DEFAULTS: Record<SlotBookingRole, { displayName: string; email: string }> = {
-  staff: { displayName: 'Daisy Tutor', email: 'tutor@afda.local' },
-  student: { displayName: 'Nandi Student', email: 'student@afda.local' },
+  mode: 'connected';
+  canToggleRole: false;
+  role: SlotBookingRole;
+  signOutUrl: string;
 };
 
 const SlotBookingAuthContext = createContext<SlotBookingAuthContextValue | null>(null);
 
-function buildUser(role: SlotBookingRole, displayName: string): SlotBookingUser {
-  return {
-    id: `${role}-${displayName.toLowerCase().replace(/\s+/g, '-')}`,
-    displayName,
-    email: ROLE_DEFAULTS[role].email,
-    role,
-    mode: 'mock',
-  };
+function resolveRole(pathname: string): SlotBookingRole {
+  return resolveSurfaceRole(pathname);
 }
 
-export function SlotBookingAuthProvider({ children }: { children: React.ReactNode }) {
-  const [role, setRoleState] = useState<SlotBookingRole>('staff');
-  const [displayName, setDisplayNameState] = useState(ROLE_DEFAULTS.staff.displayName);
-
-  useEffect(() => {
-    const savedRole = window.localStorage.getItem('slot-booking_v1_role') as SlotBookingRole | null;
-    if (savedRole === 'staff' || savedRole === 'student') {
-      setRoleState(savedRole);
-      setDisplayNameState(ROLE_DEFAULTS[savedRole].displayName);
-    }
-  }, []);
-
-  useEffect(() => {
-    window.localStorage.setItem('slot-booking_v1_role', role);
-  }, [role]);
+export function SlotBookingAuthProvider({ children, session }: { children: React.ReactNode; session: Session }) {
+  const pathname = usePathname();
+  const role = resolveRole(pathname);
+  const email = session.user?.email?.trim().toLowerCase() || '';
+  const displayName = resolveDisplayName(session.user?.name, email);
 
   const value = useMemo<SlotBookingAuthContextValue>(
     () => ({
-      user: buildUser(role, displayName),
-      mode: 'mock',
-      canToggleRole: true,
-      setRole: (nextRole: SlotBookingRole) => {
-        setRoleState(nextRole);
-        setDisplayNameState(ROLE_DEFAULTS[nextRole].displayName);
+      user: {
+        id: email || 'afda-user',
+        displayName,
+        email,
+        role,
+        mode: 'connected',
       },
-      setDisplayName: (nextDisplayName: string) => {
-        setDisplayNameState(nextDisplayName);
-      },
+      mode: 'connected',
+      canToggleRole: false,
+      role,
+      signOutUrl: `/api/auth/signout?callbackUrl=${encodeURIComponent(pathname)}`,
     }),
-    [displayName, role],
+    [displayName, email, pathname, role],
   );
 
   return <SlotBookingAuthContext.Provider value={value}>{children}</SlotBookingAuthContext.Provider>;

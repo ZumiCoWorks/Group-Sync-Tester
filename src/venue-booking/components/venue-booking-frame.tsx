@@ -17,10 +17,10 @@ export function VenueBookingFrame({ children }: { children: React.ReactNode }) {
   const { user } = useVenueBookingAuth();
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground app-shell-bg">
       <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.12),_transparent_38%),linear-gradient(180deg,_rgba(45,212,191,0.08),_transparent_22%)]" />
       <div className="relative mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-4 md:px-6 lg:px-8">
-        <header className="sticky top-3 z-30 mb-6 rounded-3xl border border-border bg-card/90 px-4 py-4 backdrop-blur-xl md:px-6">
+        <header className="app-panel sticky top-3 z-30 mb-6 px-4 py-4 md:px-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">AFDA App</p>

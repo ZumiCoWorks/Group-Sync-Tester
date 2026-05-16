@@ -66,7 +66,11 @@ export function DemoHostView() {
                 showUrlSettings={showUrlSettings}
                 setShowUrlSettings={setShowUrlSettings}
                 shuffleGroups={shuffleGroups}
-                resetToLobby={resetToLobby}
+                resetToLobby={async () => {
+                    resetToLobby();
+                }}
+                endSession={async () => {}}
+                uploadParticipants={async () => {}}
             />
         </div>
     );

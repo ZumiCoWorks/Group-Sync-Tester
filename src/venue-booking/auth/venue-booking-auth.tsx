@@ -1,37 +1,44 @@
 'use client';
 
 import { createContext, useContext, useMemo } from 'react';
+import type { Session } from 'next-auth';
+import { resolveDisplayName } from '@/lib/afda-auth';
 
 type VenueBookingUser = {
   id: string;
   displayName: string;
   email: string;
   role: 'operations';
-  mode: 'mock';
+  mode: 'connected';
 };
 
 type VenueBookingAuthContextValue = {
   user: VenueBookingUser;
-  mode: 'mock';
+  mode: 'connected';
   canToggleRole: false;
+  signOutUrl: string;
 };
 
 const VenueBookingAuthContext = createContext<VenueBookingAuthContextValue | null>(null);
 
-export function VenueBookingAuthProvider({ children }: { children: React.ReactNode }) {
+export function VenueBookingAuthProvider({ children, session }: { children: React.ReactNode; session: Session }) {
+  const email = session.user?.email?.trim().toLowerCase() || '';
+  const displayName = resolveDisplayName(session.user?.name, email);
+
   const value = useMemo<VenueBookingAuthContextValue>(
     () => ({
       user: {
-        id: 'operations-nomsa-operations',
-        displayName: 'Nomsa Operations',
-        email: 'ops@afda.local',
+        id: email || 'afda-user',
+        displayName,
+        email,
         role: 'operations',
-        mode: 'mock',
+        mode: 'connected',
       },
-      mode: 'mock',
+      mode: 'connected',
       canToggleRole: false,
+      signOutUrl: `/api/auth/signout?callbackUrl=${encodeURIComponent('/venue-booking')}`,
     }),
-    [],
+    [displayName, email],
   );
 
   return <VenueBookingAuthContext.Provider value={value}>{children}</VenueBookingAuthContext.Provider>;

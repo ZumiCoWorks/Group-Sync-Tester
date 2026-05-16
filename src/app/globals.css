@@ -2,10 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: Arial, Helvetica, sans-serif;
-}
-
 @layer base {
   :root {
     --background: 210 40% 98%;
@@ -89,4 +85,21 @@ body {
 
 .accent-emerald-500 {
   accent-color: #10b981;
+}
+
+@layer utilities {
+  .app-shell-bg {
+    background-image:
+      radial-gradient(circle at 8% 8%, rgba(16, 185, 129, 0.1), transparent 32%),
+      radial-gradient(circle at 92% 0%, rgba(244, 114, 182, 0.08), transparent 30%),
+      linear-gradient(180deg, rgba(148, 163, 184, 0.05), transparent 28%);
+  }
+
+  .app-panel {
+    @apply rounded-3xl border border-border bg-card/90 shadow-2xl backdrop-blur-xl;
+  }
+
+  .app-pill {
+    @apply rounded-full border border-border bg-secondary/60 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground;
+  }
 }

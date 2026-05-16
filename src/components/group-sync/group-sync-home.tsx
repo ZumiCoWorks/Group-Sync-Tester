@@ -1,6 +1,6 @@
 'use client';
 
-import { Crown, ShieldCheck, Users, Zap, Sparkles } from 'lucide-react';
+import { Crown, ShieldCheck, Users, Zap, CalendarClock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Navbar } from '@/components/shared/navbar';
@@ -47,77 +47,68 @@ export function GroupSyncHome() {
   };
 
   return (
-    <div className="min-h-screen bg-background font-sans">
+    <div className="min-h-screen bg-background font-sans app-shell-bg">
+      <div className="pointer-events-none absolute inset-0" />
       <Navbar />
-      <main className="mx-auto max-w-4xl px-4 pt-20 text-center">
-        <h1 className="mb-6 text-6xl font-black tracking-tighter text-foreground md:text-8xl font-headline">
-          Group students <br />
-          <span className="text-primary">effortlessly.</span>
-        </h1>
-        <p className="mx-auto mb-12 max-w-2xl text-xl font-medium text-muted-foreground md:text-2xl">
-          A high-performance live grouping tool designed for seminars, labs, and collaborative lectures.
-        </p>
+      <main className="relative mx-auto max-w-7xl px-4 pb-14 pt-8 md:px-6 lg:px-8">
+        <section className="app-panel p-6 md:p-10">
+          <p className="app-pill inline-flex">AFDA App / Student Grouping</p>
+          <h1 className="mt-5 text-5xl font-black tracking-tight text-foreground md:text-7xl font-headline">
+            Group students in
+            <span className="text-primary"> real time</span>
+          </h1>
+          <p className="mt-5 max-w-3xl text-lg font-medium text-muted-foreground md:text-xl">
+            Launch a room, let students join instantly, and shuffle balanced groups for seminar, lab, or critique sessions.
+          </p>
 
-        <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <Button
-            onClick={createSession}
-            disabled={isCreating || isUserLoading}
-            size="lg"
-            className="flex w-full items-center justify-center gap-3 rounded-full bg-foreground px-10 py-7 text-lg font-bold text-background shadow-2xl shadow-slate-200 transition-all hover:bg-foreground/90 dark:shadow-slate-900 sm:w-auto"
-          >
-            <Crown className="h-5 w-5 text-primary" /> {isCreating ? 'Creating...' : 'Host a Room'}
-          </Button>
-          <Button
-            asChild
-            size="lg"
-            className="w-full rounded-full bg-gradient-to-r from-purple-500 to-pink-500 px-10 py-7 text-lg font-bold text-white shadow-2xl transition-all hover:from-purple-600 hover:to-pink-600 sm:w-auto"
-          >
-            <Link href="/demo" className="flex items-center justify-center gap-3">
-              <Sparkles className="h-5 w-5" />
-              Try Demo
-            </Link>
-          </Button>
-          <Button
-            asChild
-            size="lg"
-            variant="outline"
-            className="w-full rounded-full border-2 border-foreground bg-transparent px-10 py-7 text-lg font-bold text-foreground transition-all hover:bg-foreground/5 sm:w-auto"
-          >
-            <Link href="/join">Join as Student</Link>
-          </Button>
-          <Button
-            asChild
-            size="lg"
-            variant="outline"
-            className="w-full rounded-full border-2 border-foreground bg-transparent px-10 py-7 text-lg font-bold text-foreground transition-all hover:bg-foreground/5 sm:w-auto"
-          >
-            <Link href="/worksuite">Open AFDA Worksuite</Link>
-          </Button>
-        </div>
+          <div className="mt-8 flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+            <Button
+              onClick={createSession}
+              disabled={isCreating || isUserLoading}
+              size="lg"
+              className="flex items-center justify-center gap-2 rounded-full px-8 py-6 text-base font-bold"
+            >
+              <Crown className="h-5 w-5" />
+              {isCreating ? 'Creating...' : 'Host a Room'}
+            </Button>
+            <Button asChild size="lg" variant="secondary" className="rounded-full px-8 py-6 text-base font-bold">
+              <Link href="/join">Join as Student</Link>
+            </Button>
+            <Button asChild size="lg" variant="outline" className="rounded-full px-8 py-6 text-base font-bold">
+              <Link href="/demo">Try Demo</Link>
+            </Button>
+            <Button asChild size="lg" variant="outline" className="rounded-full px-8 py-6 text-base font-bold">
+              <Link href="/slot-booking">
+                <CalendarClock className="mr-2 h-4 w-4" />
+                Open Slot Booking
+              </Link>
+            </Button>
+          </div>
+        </section>
 
-        <div className="mt-24 grid grid-cols-1 gap-8 border-t pt-12 text-left md:grid-cols-3">
-          <div>
-            <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <section className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="app-panel p-5">
+            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
               <Zap className="h-5 w-5" />
             </div>
-            <h3 className="font-headline font-bold text-foreground">Real-time Sync</h3>
-            <p className="text-sm text-muted-foreground">Students join instantly via QR or short code. No refresh needed.</p>
+            <h3 className="font-headline text-lg font-bold text-foreground">Real-time Sync</h3>
+            <p className="mt-2 text-sm text-muted-foreground">Students join instantly via short code. No refresh needed.</p>
           </div>
-          <div>
-            <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10 text-accent">
+          <div className="app-panel p-5">
+            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl border border-accent/20 bg-accent/10 text-accent">
               <Users className="h-5 w-5" />
             </div>
-            <h3 className="font-headline font-bold text-foreground">Varsity Ready</h3>
-            <p className="text-sm text-muted-foreground">Clean, professional UI suitable for higher education environments.</p>
+            <h3 className="font-headline text-lg font-bold text-foreground">Classroom Ready</h3>
+            <p className="mt-2 text-sm text-muted-foreground">Built for higher education timetables and teaching workflows.</p>
           </div>
-          <div>
-            <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-purple-500/10 text-purple-500">
+          <div className="app-panel p-5">
+            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
               <ShieldCheck className="h-5 w-5" />
             </div>
-            <h3 className="font-headline font-bold text-foreground">One-Click Export</h3>
-            <p className="text-sm text-muted-foreground">Copy group lists directly to clipboard for attendance or LMS.</p>
+            <h3 className="font-headline text-lg font-bold text-foreground">Fast Exports</h3>
+            <p className="mt-2 text-sm text-muted-foreground">Copy group lists quickly for attendance, LMS uploads, and archives.</p>
           </div>
-        </div>
+        </section>
       </main>
     </div>
   );

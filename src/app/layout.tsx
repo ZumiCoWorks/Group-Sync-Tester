@@ -3,6 +3,7 @@ import './globals.css';
 import { cn } from '@/lib/utils';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
+import { AuthSessionProvider } from '@/components/auth/session-provider';
 
 export const metadata: Metadata = {
   title: 'AFDA Workspace',
@@ -15,7 +16,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full">
+    <html lang="en" className="h-full" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -25,7 +26,7 @@ export default function RootLayout({
       </head>
       <body className={cn('min-h-screen bg-background font-body text-foreground antialiased selection:bg-primary/20')}>
         <FirebaseClientProvider>
-          {children}
+          <AuthSessionProvider>{children}</AuthSessionProvider>
           <Toaster />
         </FirebaseClientProvider>
       </body>

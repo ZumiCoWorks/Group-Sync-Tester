@@ -1,5 +1,5 @@
-import { SlotBookingTutorPage as SlotBookingTutorScreen } from '@/slot-booking/pages/slot-booking-tutor';
+import { redirect } from 'next/navigation';
 
 export default function SlotBookingTutorRoute() {
-  return <SlotBookingTutorScreen />;
+  redirect('/slot-booking/lecturer');
 }
