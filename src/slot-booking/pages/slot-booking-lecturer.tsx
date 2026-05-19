@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -149,18 +148,18 @@ export function SlotBookingLecturerPage() {
   if (!mounted) {
     return (
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="border border-border bg-card p-5 text-card-foreground shadow-sm lg:col-span-2">
+        <section className="rounded-3xl border border-border bg-card p-5 text-card-foreground shadow-sm lg:col-span-2">
           <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Lecturer lane</p>
           <h2 className="mt-1 text-2xl font-semibold">Lecturer dashboard</h2>
           <p className="mt-3 text-sm text-muted-foreground">Loading workspace data...</p>
-        </Card>
+        </section>
       </div>
     );
   }
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <Card className={cn(panelClass, 'lg:col-span-2')}>
+      <section className={cn(panelClass, 'lg:col-span-2')}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Lecturer lane</p>
@@ -169,10 +168,10 @@ export function SlotBookingLecturerPage() {
           </div>
           <Badge className="rounded-full bg-blue-600 px-3 py-1 text-white hover:bg-blue-600">{roleLabel(user.role)}</Badge>
         </div>
-      </Card>
+      </section>
 
       {/* Draft batches publish area (lecturer) - allow lecturers to publish their own batches to students */}
-      <Card className={panelClass}>
+      <section className={panelClass}>
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Draft Batches</p>
@@ -225,9 +224,9 @@ export function SlotBookingLecturerPage() {
           ))}
           {!draftBatches.length && <p className="text-sm text-muted-foreground">No draft batches yet.</p>}
         </div>
-      </Card>
+      </section>
 
-      <Card className={panelClass}>
+      <section className={panelClass}>
         <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Slot creation</p>
         <h3 className="mt-1 text-xl font-semibold">Create lecturer slots</h3>
 
@@ -312,9 +311,9 @@ export function SlotBookingLecturerPage() {
             {statusMessage && <p className="mt-2 text-emerald-300">{statusMessage}</p>}
           </div>
         </div>
-      </Card>
+      </section>
 
-      <Card className={panelClass}>
+      <section className={panelClass}>
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Delegation view</p>
@@ -387,9 +386,9 @@ export function SlotBookingLecturerPage() {
             </div>
           </ScrollArea>
         </div>
-      </Card>
+      </section>
 
-      <Card className={panelClass}>
+      <section className={panelClass}>
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Calendar sync view</p>
@@ -434,9 +433,9 @@ export function SlotBookingLecturerPage() {
             {!store.bookings.length && <p className="text-sm text-muted-foreground">No bookings synced yet.</p>}
           </div>
         </ScrollArea>
-      </Card>
+      </section>
 
-      <Card className={cn(panelClass, 'lg:col-span-2')}>
+      <section className={cn(panelClass, 'lg:col-span-2')}>
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Published Batches</p>
@@ -490,7 +489,7 @@ export function SlotBookingLecturerPage() {
           })}
           {!publishedBatches.length && <p className="text-sm text-muted-foreground">Published batches will appear here with a WhatsApp-ready link.</p>}
         </div>
-      </Card>
+      </section>
 
       <Dialog open={publishModalOpen} onOpenChange={setPublishModalOpen}>
         <DialogContent className="border-border bg-card text-card-foreground">

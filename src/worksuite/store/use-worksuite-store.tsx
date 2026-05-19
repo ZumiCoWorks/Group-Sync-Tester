@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFirestore } from '@/firebase';
 import { buildVenueRecords, parseVenueSpreadsheet, autoMapVenueColumns } from '../services/spreadsheet';
 import { mockWorksuiteSnapshot } from '../mock-data';
@@ -51,6 +51,17 @@ function toMinutes(time: string) {
 
 function hasOverlap(startA: number, endA: number, startB: number, endB: number) {
   return startA < endB && startB < endA;
+}
+
+function isPermissionDeniedError(error: unknown) {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  const maybeCode = 'code' in error ? String((error as { code?: unknown }).code || '') : '';
+  const maybeMessage = 'message' in error ? String((error as { message?: unknown }).message || '') : '';
+
+  return maybeCode.includes('permission-denied') || maybeMessage.includes('Missing or insufficient permissions');
 }
 
 function resolveAssignableRole(role: WorksuiteUser['role'] | undefined): Exclude<WorksuiteUser['role'], 'student'> {
@@ -110,19 +121,37 @@ export function useWorksuiteStore(currentUser?: WorksuiteUser | null) {
   const [snapshot, setSnapshot] = useState<WorksuiteSnapshot>(() => ensureSnapshot(loadWorksuiteSnapshot()));
   const [lastImport, setLastImport] = useState<SpreadsheetPreview | null>(null);
   const [lastMapping, setLastMapping] = useState<VenueColumnMapping | null>(null);
+  const syncDisabledRef = useRef(false);
+  const syncSkipLoggedRef = useRef(false);
+
+  const syncSnapshotSafely = async (nextSnapshot: WorksuiteSnapshot) => {
+    if (WORKSUITE_DEV_MODE || !db || syncDisabledRef.current) {
+      return;
+    }
+
+    try {
+      await syncSnapshotToFirestore(db, nextSnapshot);
+    } catch (error) {
+      if (isPermissionDeniedError(error)) {
+        syncDisabledRef.current = true;
+
+        if (!syncSkipLoggedRef.current) {
+          console.info('[Worksuite] Firestore sync disabled for this session (permission denied). Using local snapshot only.');
+          syncSkipLoggedRef.current = true;
+        }
+        return;
+      }
+
+      console.warn('[Worksuite] Firestore sync skipped:', error);
+    }
+  };
 
   useEffect(() => {
     saveWorksuiteSnapshot(snapshot);
   }, [snapshot]);
 
   useEffect(() => {
-    if (WORKSUITE_DEV_MODE || !db) {
-      return;
-    }
-
-    void syncSnapshotToFirestore(db, snapshot).catch((error) => {
-      console.warn('[Worksuite] Firestore sync skipped:', error);
-    });
+    void syncSnapshotSafely(snapshot);
   }, [snapshot, db]);
 
   const venues = snapshot.venues;
@@ -159,9 +188,7 @@ export function useWorksuiteStore(currentUser?: WorksuiteUser | null) {
     setLastMapping(mapping);
     saveWorksuiteSnapshot(nextSnapshot);
 
-    if (!WORKSUITE_DEV_MODE && db) {
-      await syncSnapshotToFirestore(db, nextSnapshot);
-    }
+    await syncSnapshotSafely(nextSnapshot);
 
     return { imported: records.length };
   };
@@ -197,9 +224,7 @@ export function useWorksuiteStore(currentUser?: WorksuiteUser | null) {
     setSnapshot(nextSnapshot);
     saveWorksuiteSnapshot(nextSnapshot);
 
-    if (!WORKSUITE_DEV_MODE && db) {
-      await syncSnapshotToFirestore(db, nextSnapshot);
-    }
+    await syncSnapshotSafely(nextSnapshot);
 
     return record;
   };
@@ -220,9 +245,7 @@ export function useWorksuiteStore(currentUser?: WorksuiteUser | null) {
     setSnapshot(nextSnapshot);
     saveWorksuiteSnapshot(nextSnapshot);
 
-    if (!WORKSUITE_DEV_MODE && db) {
-      await syncSnapshotToFirestore(db, nextSnapshot);
-    }
+    await syncSnapshotSafely(nextSnapshot);
 
     return delegationId;
   };
@@ -342,9 +365,7 @@ export function useWorksuiteStore(currentUser?: WorksuiteUser | null) {
     setSnapshot(nextSnapshot);
     saveWorksuiteSnapshot(nextSnapshot);
 
-    if (!WORKSUITE_DEV_MODE && db) {
-      await syncSnapshotToFirestore(db, nextSnapshot);
-    }
+    await syncSnapshotSafely(nextSnapshot);
 
     return { batch, slots: generatedSlots };
   };
