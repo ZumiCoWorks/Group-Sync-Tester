@@ -17,7 +17,7 @@ export default function OnboardingPage() {
 
     const r = await fetch('/api/roles/assign-self', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role }) });
     if (r.ok) {
-      router.push(role === 'lecturer' ? '/slot-booking/lecturer' : '/slot-booking/tutor');
+      router.push(role === 'lecturer' ? '/lecturer' : '/tutor');
     } else {
       const d = await r.json();
       setMessage(d?.error || 'Failed to assign');

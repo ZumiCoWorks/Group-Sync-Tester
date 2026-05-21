@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useEffect, useState, type ReactNode } from 'react';
-import { signIn, signOut, useSession } from 'next-auth/react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -20,7 +19,7 @@ type DashboardShellProps = {
   tone: 'blue' | 'emerald' | 'orange' | 'amber';
   eyebrow: string;
   title: string;
-  description: string;
+  description?: string;
   badgeLabel: string;
   navItems: DashboardNavItem[];
   pendingCount?: number;
@@ -47,8 +46,7 @@ const toneClasses = {
 } as const;
 
 export function DashboardShell({ tone, eyebrow, title, description, badgeLabel, navItems, pendingCount = 0, children }: DashboardShellProps) {
-  const { user } = useSlotBookingAuth();
-  const { data: session } = useSession();
+  const { user, signOutUrl } = useSlotBookingAuth();
   const [uiTheme, setUiTheme] = useState<'light' | 'dark'>('dark');
 
   const theme = toneClasses[tone];
@@ -79,15 +77,15 @@ export function DashboardShell({ tone, eyebrow, title, description, badgeLabel, 
   return (
     <div className="min-h-screen overflow-hidden bg-[#f6f8f7] text-slate-900 transition-colors dark:bg-[#0b0f0d] dark:text-slate-100">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.06),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(15,23,42,0.08),_transparent_35%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.12),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(15,23,42,0.34),_transparent_35%)]" />
-      <div className="relative mx-auto grid min-h-screen w-full max-w-[1480px] gap-4 px-4 py-4 md:grid-cols-[240px_1fr] md:px-6 lg:px-8">
-        <aside className="hidden rounded-2xl border border-slate-200/90 bg-white/90 p-4 shadow-sm backdrop-blur md:flex md:flex-col dark:border-[#1f2a23] dark:bg-[#0f1512]">
+      <div className="relative mx-auto grid min-h-screen w-full max-w-[1480px] gap-4 px-4 py-4 md:px-6 lg:px-8">
+        <aside className="hidden">
           <div className="flex items-center gap-3 px-1 pb-4">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500 text-white">
               <LayoutGrid className="h-5 w-5" />
             </div>
             <div>
               <p className="text-[10px] uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">AFDA</p>
-              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{title}</p>
+              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{badgeLabel}</p>
             </div>
           </div>
 
@@ -142,25 +140,12 @@ export function DashboardShell({ tone, eyebrow, title, description, badgeLabel, 
                 {uiTheme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </Button>
               <Badge className={cn('rounded-full px-2.5 py-0.5 text-xs font-semibold', theme.badge)}>{badgeLabel}</Badge>
-              {session?.user ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => signOut({ callbackUrl: '/' })}
-                  className="rounded-full border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-[#253228] dark:bg-[#131d17] dark:text-slate-200 dark:hover:bg-[#18231c]"
-                >
+              <Button asChild variant="ghost" size="sm" className="rounded-full border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-[#253228] dark:bg-[#131d17] dark:text-slate-200 dark:hover:bg-[#18231c]">
+                <Link href={signOutUrl}>
                   <LogOut className="h-4 w-4" />
-                </Button>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => signIn(undefined, { callbackUrl: '/' })}
-                  className="rounded-full border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-[#253228] dark:bg-[#131d17] dark:text-slate-200 dark:hover:bg-[#18231c]"
-                >
-                  Login
-                </Button>
-              )}
+                  <span className="ml-1">Sign out</span>
+                </Link>
+              </Button>
             </div>
           </header>
 
@@ -185,7 +170,7 @@ export function DashboardShell({ tone, eyebrow, title, description, badgeLabel, 
           </nav>
 
           <div className="px-4 py-4 md:px-6 md:py-6">
-            <p className="mb-4 text-sm text-slate-600 dark:text-slate-300">{description}</p>
+            {description ? <p className="mb-4 text-sm text-slate-600 dark:text-slate-300">{description}</p> : null}
             <main>{children}</main>
           </div>
         </section>

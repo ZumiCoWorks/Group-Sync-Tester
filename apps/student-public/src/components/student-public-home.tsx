@@ -1,22 +1,14 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, CalendarDays, Clock3, Phone, ShieldCheck, Sparkles } from 'lucide-react';
+import { Clock3, Phone, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { useSlotBookingStore } from '@/slot-booking/store/use-slot-booking-store';
 
 export function StudentPublicHome() {
-  const store = useSlotBookingStore();
-  const [batchId, setBatchId] = useState(store.slotBatches[0]?.id ?? '');
-
-  const batches = useMemo(
-    () => store.slotBatches.filter((batch) => batch.isPublished),
-    [store.slotBatches],
-  );
+  const [batchId, setBatchId] = useState('');
 
   return (
     <div className="min-h-screen bg-[#07111a] text-white">
@@ -28,7 +20,6 @@ export function StudentPublicHome() {
               <p className="text-[11px] uppercase tracking-[0.34em] text-white/45">Student Booking</p>
               <h1 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">Tap. Claim. Done.</h1>
             </div>
-            <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white/60">{batches.length} live</div>
           </div>
 
           <div className="mt-4 grid grid-cols-3 gap-2 text-xs text-white/70 sm:text-sm">
@@ -42,17 +33,16 @@ export function StudentPublicHome() {
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
               <Clock3 className="mb-2 h-4 w-4 text-emerald-400" />
-              Fast booking
+              Batch ID first
             </div>
           </div>
         </header>
 
         <section className="mt-4 grid gap-4 sm:mt-6">
           <Card className="border-white/10 bg-[#111a26]/95 p-4 text-white shadow-[0_18px_50px_rgba(0,0,0,0.28)] backdrop-blur-xl sm:p-5">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs uppercase tracking-[0.3em] text-white/80">
-              <Sparkles className="h-3.5 w-3.5" />
-              Open batch
-            </div>
+            <p className="text-xs uppercase tracking-[0.3em] text-white/45">Open batch</p>
+            <h2 className="mt-2 text-xl font-black text-white">Paste the batch ID</h2>
+            <p className="mt-2 text-sm leading-6 text-white/65">Use the batch link your tutor shared, or paste the batch ID here to open it directly.</p>
 
             <div className="mt-4 space-y-3">
               <Input
@@ -65,44 +55,6 @@ export function StudentPublicHome() {
                 <Link href={batchId ? `/public/${batchId}` : '/'}>Open booking page</Link>
               </Button>
             </div>
-          </Card>
-
-          <Card className="border-white/10 bg-[#111a26]/95 p-4 text-white shadow-[0_18px_50px_rgba(0,0,0,0.28)] backdrop-blur-xl sm:p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-white/45">Live batches</p>
-                <h2 className="text-xl font-black text-white">Available now</h2>
-              </div>
-            </div>
-
-            <ScrollArea className="mt-4 h-[58vh] pr-2">
-              <div className="space-y-3">
-                {batches.map((batch) => (
-                  <Link
-                    key={batch.id}
-                    href={`/public/${batch.id}`}
-                    className="group block rounded-[1.4rem] border border-white/10 bg-white/[0.03] p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.06]"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="flex items-center gap-2 text-sm font-semibold text-white">
-                          <CalendarDays className="h-4 w-4 text-emerald-400" />
-                          {batch.locationLabel}
-                        </div>
-                        <p className="mt-2 text-sm leading-6 text-white/65">{batch.date ?? 'Published slot batch'}</p>
-                      </div>
-                      <ArrowRight className="mt-1 h-5 w-5 text-white/35 transition-transform group-hover:translate-x-1" />
-                    </div>
-                  </Link>
-                ))}
-
-                {!batches.length && (
-                  <div className="rounded-[1.4rem] border border-dashed border-white/15 bg-white/[0.02] p-4 text-sm text-white/55">
-                    No published batches yet.
-                  </div>
-                )}
-              </div>
-            </ScrollArea>
           </Card>
         </section>
       </main>

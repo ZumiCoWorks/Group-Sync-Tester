@@ -12,9 +12,10 @@ export const metadata: Metadata = {
 
 export default async function StudentSlotBookingLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
+  const requireAuth = process.env.NODE_ENV === 'production' && process.env.DISABLE_AUTH_REDIRECTS !== 'true';
 
-  if (!session?.user?.email || !isAfdaEmail(session.user.email)) {
-    redirect('/auth/signin?callbackUrl=%2Fslot-booking%2Fstudent');
+  if (requireAuth && (!session?.user?.email || !isAfdaEmail(session.user.email))) {
+    redirect('/auth/signin?callbackUrl=%2Fstudent');
   }
 
   return <StudentBookingShell>{children}</StudentBookingShell>;

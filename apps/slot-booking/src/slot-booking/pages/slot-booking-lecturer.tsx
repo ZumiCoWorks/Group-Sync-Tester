@@ -7,11 +7,23 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { CalendarPlus2, Link2, ShieldCheck } from 'lucide-react';
-import { listActiveDelegationsForLecturer, roleLabel } from '@/worksuite/authority';
+import { Textarea } from '@/components/ui/textarea';
+import { CalendarPlus2, ShieldCheck } from 'lucide-react';
+import { listActiveDelegationsForLecturer } from '@/worksuite/authority';
 import { cn } from '@/lib/utils';
 import { useSlotBookingAuth } from '../auth/slot-booking-auth';
 import { useSlotBookingStore } from '../store/use-slot-booking-store';
+
+function parseDateList(input: string) {
+  return Array.from(
+    new Set(
+      input
+        .split(/[,\n]/)
+        .map((value) => value.trim())
+        .filter(Boolean),
+    ),
+  );
+}
 
 export function SlotBookingLecturerPage() {
   const { user } = useSlotBookingAuth();
@@ -30,7 +42,7 @@ export function SlotBookingLecturerPage() {
   const [locationMode, setLocationMode] = useState<'allocated' | 'custom'>('allocated');
   const [venueId, setVenueId] = useState(store.venues[0]?.id || '');
   const [customLocation, setCustomLocation] = useState('');
-  const [date, setDate] = useState('');
+  const [dateList, setDateList] = useState(new Date().toISOString().slice(0, 10));
   const [startTime, setStartTime] = useState('10:00');
   const [durationMinutes, setDurationMinutes] = useState(20);
   const [slotCount, setSlotCount] = useState(4);
@@ -49,12 +61,10 @@ export function SlotBookingLecturerPage() {
 
   const venue = store.venues.find((item) => item.id === venueId || item.venueId === venueId) || store.venues[0];
   const draftBatches = useMemo(() => store.slotBatches.filter((batch) => !batch.isPublished), [store.slotBatches]);
-  const publishedBatches = useMemo(() => store.slotBatches.filter((batch) => batch.isPublished), [store.slotBatches]);
-  const publishedSlots = useMemo(() => store.slots.filter((slot) => slot.isPublished), [store.slots]);
   const activeDelegations = useMemo(() => listActiveDelegationsForLecturer(store.delegations, user.email), [store.delegations, user.email]);
-  const syncedBookings = useMemo(() => store.bookings.filter((booking) => booking.calendarStatus === 'synced'), [store.bookings]);
   const panelClass = 'border border-border bg-card p-5 text-card-foreground shadow-sm';
   const subPanelClass = 'rounded-2xl border border-border bg-muted/30 p-4';
+  const parsedDates = useMemo(() => parseDateList(dateList), [dateList]);
   const selectedBatchSlots = useMemo(
     () => store.slots.filter((slot) => slot.batchId === selectedBatchId),
     [selectedBatchId, store.slots],
@@ -88,31 +98,51 @@ export function SlotBookingLecturerPage() {
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    if (!date) {
-      setDate(new Date().toISOString().slice(0, 10));
-    }
-  }, [date]);
-
   const createSlots = async () => {
-    const created = await store.createSlots({
-      locationMode,
-      venueId: venue?.id,
-      customLocation,
-      tutorName: lecturerName,
-      ownerName: lecturerName,
-      ownerEmail: lecturerEmail,
-      ownerRole: 'lecturer',
-      createdBy: user.displayName,
-      createdByRole: 'lecturer',
-      discipline: lecturerDiscipline,
-      date,
-      startTime,
-      durationMinutes,
-      slotCount,
-    });
+    if (!parsedDates.length) {
+      setStatusMessage('Add at least one date before creating slots.');
+      return;
+    }
 
-    setStatusMessage(`Created ${created.slots.length} lecturer slot${created.slots.length === 1 ? '' : 's'} for ${created.batch.locationLabel}.`);
+    const createdLocations: string[] = [];
+    const skippedDates: string[] = [];
+    let createdSlotTotal = 0;
+
+    for (const targetDate of parsedDates) {
+      try {
+        const created = await store.createSlots({
+          locationMode,
+          venueId: venue?.id,
+          customLocation,
+          tutorName: lecturerName,
+          ownerName: lecturerName,
+          ownerEmail: lecturerEmail,
+          ownerRole: 'lecturer',
+          createdBy: user.displayName,
+          createdByRole: 'lecturer',
+          discipline: lecturerDiscipline,
+          date: targetDate,
+          startTime,
+          durationMinutes,
+          slotCount,
+        });
+
+        createdLocations.push(created.batch.locationLabel);
+        createdSlotTotal += created.slots.length;
+      } catch (error) {
+        skippedDates.push(`${targetDate}${error instanceof Error ? ` (${error.message})` : ''}`);
+      }
+    }
+
+    if (!createdSlotTotal) {
+      setStatusMessage(skippedDates[0] ? `No slots created. ${skippedDates[0]}` : 'No slots created.');
+      return;
+    }
+
+    setStatusMessage(
+      `Created ${createdSlotTotal} lecturer slot${createdSlotTotal === 1 ? '' : 's'} across ${createdLocations.length} day${createdLocations.length === 1 ? '' : 's'}.` +
+      (skippedDates.length ? ` Skipped ${skippedDates.length} day${skippedDates.length === 1 ? '' : 's'}.` : ''),
+    );
   };
 
   const openPublishModal = (batchId: string, locationLabel: string) => {
@@ -143,7 +173,7 @@ export function SlotBookingLecturerPage() {
       setPublishError('');
       setSelectedBatchId('');
       setSelectedBatchLabel('');
-      setShareUrl(`${window.location.origin}/public/${result.batchId}`);
+      setShareUrl(`${window.location.origin}/published/${result.batchId}`);
       setStatusMessage(
         applyLunchWindow
           ? `Published ${batchLabel}: ${result.publishedCount} live, ${result.lunchExcludedCount} excluded for lunch.`
@@ -168,17 +198,6 @@ export function SlotBookingLecturerPage() {
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <section className={cn(panelClass, 'lg:col-span-2')}>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Lecturer lane</p>
-            <h2 className="mt-1 text-2xl font-semibold">Lecturer dashboard</h2>
-            <p className="mt-2 text-sm text-muted-foreground">Create slots, publish, delegate, and monitor sync from one clean surface.</p>
-          </div>
-          <Badge className="rounded-full bg-blue-600 px-3 py-1 text-white hover:bg-blue-600">{roleLabel(user.role)}</Badge>
-        </div>
-      </section>
-
       {/* Draft batches publish area (lecturer) - allow lecturers to publish their own batches to students */}
       <section className={panelClass}>
         <div className="flex items-center justify-between gap-3">
@@ -200,6 +219,7 @@ export function SlotBookingLecturerPage() {
                   <p className="text-xs text-muted-foreground">
                     {batch.date} · {batch.startTime} · {batch.slotCount} slot{batch.slotCount === 1 ? '' : 's'}
                   </p>
+                  <p className="mt-1 text-xs text-muted-foreground">Discipline: {batch.discipline || 'Unspecified'}</p>
                   <p className="mt-1 text-xs text-muted-foreground">Owner: {batch.ownerName} · {batch.ownerRole}</p>
                 </div>
                 <div className="flex flex-col items-end gap-2">
@@ -213,8 +233,8 @@ export function SlotBookingLecturerPage() {
                   </Button>
                   {shareUrl && (
                     <div className="flex items-center gap-2 text-xs">
-                      <a href={shareUrl} target="_blank" rel="noreferrer" className="font-medium text-primary underline">
-                        Open share link
+                        <a href={shareUrl} target="_blank" rel="noreferrer" className="font-medium text-primary underline">
+                        Open published view
                       </a>
                       <Button
                         type="button"
@@ -250,6 +270,21 @@ export function SlotBookingLecturerPage() {
           </div>
 
           <div className="space-y-2">
+            <Label className="text-foreground">Discipline</Label>
+            <select
+              value={lecturerDiscipline}
+              onChange={(event) => setLecturerDiscipline(event.target.value)}
+              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none"
+            >
+              {DISCIPLINES.map((discipline) => (
+                <option key={discipline} value={discipline}>
+                  {discipline}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
             <Label className="text-foreground">Location mode</Label>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <Button type="button" variant={locationMode === 'allocated' ? 'default' : 'outline'} className="rounded-full" onClick={() => setLocationMode('allocated')}>
@@ -281,8 +316,14 @@ export function SlotBookingLecturerPage() {
 
           <div className="grid gap-3 md:grid-cols-2">
             <div className="space-y-2">
-              <Label className="text-foreground">Date</Label>
-              <Input type="date" value={date} onChange={(event) => setDate(event.target.value)} className="border-border bg-background text-foreground" />
+              <Label className="text-foreground">Dates</Label>
+              <Textarea
+                value={dateList}
+                onChange={(event) => setDateList(event.target.value)}
+                className="min-h-28 border-border bg-background text-foreground"
+                placeholder="2026-05-20\n2026-05-21"
+              />
+              <p className="text-xs text-muted-foreground">Enter one date per line or separate multiple dates with commas.</p>
             </div>
             <div className="space-y-2">
               <Label className="text-foreground">Start time</Label>
@@ -303,13 +344,13 @@ export function SlotBookingLecturerPage() {
 
           <Button
             onClick={createSlots}
-            disabled={locationMode === 'allocated'
-              ? !venue || !date || !lecturerName.trim() || !lecturerEmail.trim()
-              : !customLocation.trim() || !date || !lecturerName.trim() || !lecturerEmail.trim()}
+            disabled={!parsedDates.length || (locationMode === 'allocated'
+              ? !venue || !lecturerName.trim() || !lecturerEmail.trim()
+              : !customLocation.trim() || !lecturerName.trim() || !lecturerEmail.trim())}
             className="w-full rounded-full bg-primary px-6 py-6 text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
             <CalendarPlus2 className="mr-2 h-4 w-4" />
-            Create lecturer slots
+            Create lecturer slots for selected days
           </Button>
 
           <div className={cn(subPanelClass, 'text-sm text-muted-foreground')}>
@@ -394,109 +435,6 @@ export function SlotBookingLecturerPage() {
               {!store.delegations.length && <p className="text-sm text-muted-foreground">No tutor delegations yet.</p>}
             </div>
           </ScrollArea>
-        </div>
-      </section>
-
-      <section className={panelClass}>
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Calendar sync view</p>
-            <h3 className="text-xl font-semibold">Microsoft sync status</h3>
-          </div>
-          <Badge className="rounded-full bg-blue-600 px-3 py-1 text-white hover:bg-blue-600" suppressHydrationWarning>
-            {mounted ? `${syncedBookings.length} synced` : '—'}
-          </Badge>
-        </div>
-
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">
-          <div className={subPanelClass}>
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Bookings</p>
-            <p className="mt-2 text-2xl font-bold" suppressHydrationWarning>{mounted ? store.bookings.length : '—'}</p>
-          </div>
-          <div className={subPanelClass}>
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Slots</p>
-            <p className="mt-2 text-2xl font-bold" suppressHydrationWarning>{mounted ? store.summary.openSlotCount : '—'}</p>
-          </div>
-        </div>
-
-        <ScrollArea className="mt-6 h-[300px] pr-3">
-          <div className="space-y-3">
-            {store.bookings.slice(0, 6).map((booking) => (
-              <div key={booking.id} className={cn(subPanelClass, 'text-sm')}>
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-bold">{booking.locationLabel}</p>
-                    <p className="text-xs text-muted-foreground">{booking.studentName} · {booking.startTime}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">Owner: {booking.ownerName} · {booking.ownerRole}</p>
-                  </div>
-                  <Badge className={booking.calendarStatus === 'synced' ? 'rounded-full bg-emerald-500/20 text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-300' : 'rounded-full bg-amber-500/20 text-amber-800 hover:bg-amber-500/20 dark:text-amber-200'}>{booking.calendarStatus}</Badge>
-                </div>
-                {booking.calendarMeetingUrl && (
-                  <a href={booking.calendarMeetingUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-primary">
-                    <Link2 className="h-3.5 w-3.5" />
-                    Open meeting link
-                  </a>
-                )}
-              </div>
-            ))}
-            {!store.bookings.length && <p className="text-sm text-muted-foreground">No bookings synced yet.</p>}
-          </div>
-        </ScrollArea>
-      </section>
-
-      <section className={cn(panelClass, 'lg:col-span-2')}>
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Published Batches</p>
-            <h3 className="text-xl font-semibold">Share links with students</h3>
-          </div>
-          <Badge className="rounded-full bg-emerald-600 px-3 py-1 text-white hover:bg-emerald-600" suppressHydrationWarning>
-            {mounted ? `${publishedBatches.length} live` : '—'}
-          </Badge>
-        </div>
-
-        <div className="mt-6 space-y-3">
-          {publishedBatches.map((batch) => {
-            const publicPath = `/public/${batch.id}`;
-            return (
-              <div key={batch.id} className={subPanelClass}>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                      <p className="font-bold">{batch.locationLabel}</p>
-                      <p className="text-xs text-muted-foreground">
-                      {batch.date} · {batch.startTime} · {batch.slotCount} slot{batch.slotCount === 1 ? '' : 's'}
-                    </p>
-                      <p className="mt-1 text-xs text-muted-foreground">Owner: {batch.ownerName} · {batch.ownerRole}</p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button type="button" variant="outline" className="rounded-full border-border" asChild>
-                      <a href={publicPath} target="_blank" rel="noreferrer">Open</a>
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="rounded-full border-border"
-                      onClick={async () => {
-                        const absoluteUrl = `${window.location.origin}${publicPath}`;
-                        try {
-                          await navigator.clipboard.writeText(absoluteUrl);
-                          setShareUrl(absoluteUrl);
-                          setStatusMessage('Share link copied.');
-                        } catch {
-                          setShareUrl(absoluteUrl);
-                          setStatusMessage('Share link ready to copy.');
-                        }
-                      }}
-                    >
-                      Copy link
-                    </Button>
-                  </div>
-                </div>
-                {shareUrl.endsWith(publicPath) && <p className="mt-3 text-xs text-emerald-600 dark:text-emerald-300">{shareUrl}</p>}
-              </div>
-            );
-          })}
-          {!publishedBatches.length && <p className="text-sm text-muted-foreground">Published batches will appear here with a WhatsApp-ready link.</p>}
         </div>
       </section>
 

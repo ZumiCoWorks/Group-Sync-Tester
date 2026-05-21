@@ -8,11 +8,15 @@ import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import { useSlotBookingStore } from '../store/use-slot-booking-store';
 
 export function SlotBookingOverviewPage() {
   const { data: session } = useSession();
   const router = useRouter();
+  const store = useSlotBookingStore(session?.user ? { email: session.user.email ?? '' } : null);
   const [role, setRole] = useState<'operations' | 'lecturer' | 'tutor' | 'student' | 'admin' | 'unassigned' | null>(null);
+  const draftCount = store.slotBatches.filter((batch) => !batch.isPublished).length;
+  const publishedCount = store.slotBatches.filter((batch) => batch.isPublished).length;
 
   useEffect(() => {
     async function resolve() {
@@ -74,25 +78,43 @@ export function SlotBookingOverviewPage() {
 
         <div className="grid gap-4 border-b border-border px-6 py-5 md:grid-cols-4 md:px-8">
           <Metric label="Active lane" value={role === 'admin' ? 'Admin' : role ? role[0].toUpperCase() + role.slice(1) : 'Loading'} />
-          <Metric label="Published slots" value="Live" />
+          <Metric label="Draft batches" value={String(draftCount)} />
+          <Metric label="Published batches" value={String(publishedCount)} />
           <Metric label="Booking rule" value="One claim" />
-          <Metric label="Calendar" value="Graph first" />
         </div>
 
         <div className="px-6 py-6 md:px-8">
           <div className="mb-6 flex items-center gap-3 rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-sm text-blue-950">
             <Sparkles className="h-4 w-4" />
-            Choose the lane you need. Each app keeps role boundaries explicit, but the visual system stays unified.
+            Manage slots first. Create a draft batch when there are none, then publish it for students.
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-2">
+            <div className="rounded-[1.5rem] border border-border bg-white p-5">
+              <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Manage slots</p>
+              <h3 className="mt-3 text-2xl font-black text-foreground">{draftCount > 0 ? 'Review your draft batches' : 'No drafts yet'}</h3>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                {draftCount > 0
+                  ? `You have ${draftCount} draft batch${draftCount === 1 ? '' : 'es'} ready to manage.`
+                  : 'Start by creating a batch. Once it is ready, publish it for students.'}
+              </p>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <Button asChild className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90">
+                  <Link href="/lecturer">{draftCount > 0 ? 'Open manage slots' : 'Create batch'}</Link>
+                </Button>
+                <Button asChild variant="outline" className="rounded-full border-border bg-background text-foreground hover:bg-secondary">
+                  <Link href="/tutor">Tutor lane</Link>
+                </Button>
+              </div>
+            </div>
+
             {(role === 'lecturer' || role === 'tutor') && <DashCard href="/slot-booking/lecturer" icon={<CalendarClock className="h-5 w-5" />} title="Slot Creator" text="Create batches, manage delegations, and publish student-facing slots." cta="Open slot creator" />}
             {role === 'student' && <DashCard href="/slot-booking/student" icon={<UserRoundCheck className="h-5 w-5" />} title="Student View" text="Claim one published slot and keep the booking flow mobile-first." cta="Open student flow" />}
           </div>
 
           <div className="mt-6 flex flex-wrap gap-3">
             <Button asChild className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90">
-              <Link href="/slot-booking">Open booking hub</Link>
+              <Link href="/lecturer">Create a batch</Link>
             </Button>
             <Button asChild variant="outline" className="rounded-full border-border bg-background text-foreground hover:bg-secondary">
               <Link href="/slot-booking/student">Open student flow</Link>

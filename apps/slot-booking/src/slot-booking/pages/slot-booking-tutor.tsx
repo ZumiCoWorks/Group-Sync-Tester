@@ -9,11 +9,23 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Textarea } from '@/components/ui/textarea';
 import { getLockoutCopy, isLocked } from '@/worksuite/config';
 import { listActiveDelegationsForTutor } from '@/worksuite/authority';
 import type { SlotLocationMode } from '@/worksuite/types';
 import { useSlotBookingAuth } from '../auth/slot-booking-auth';
 import { useSlotBookingStore } from '../store/use-slot-booking-store';
+
+function parseDateList(input: string) {
+  return Array.from(
+    new Set(
+      input
+        .split(/[,\n]/)
+        .map((value) => value.trim())
+        .filter(Boolean),
+    ),
+  );
+}
 
 export function SlotBookingTutorPage() {
   const { user } = useSlotBookingAuth();
@@ -24,7 +36,7 @@ export function SlotBookingTutorPage() {
   const [slotOwnerMode, setSlotOwnerMode] = useState<'self' | 'lecturer'>('self');
   const [lecturerName, setLecturerName] = useState('');
   const [lecturerEmail, setLecturerEmail] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [dateList, setDateList] = useState(new Date().toISOString().slice(0, 10));
   const [startTime, setStartTime] = useState('09:00');
   const [durationMinutes, setDurationMinutes] = useState(20);
   const [slotCount, setSlotCount] = useState(6);
@@ -42,11 +54,11 @@ export function SlotBookingTutorPage() {
     setMounted(true);
   }, []);
 
-  const locked = isLocked(date);
   const venue = store.venues.find((item) => item.id === venueId || item.venueId === venueId) || store.venues[0];
   const draftBatches = useMemo(() => store.slotBatches.filter((batch) => !batch.isPublished), [store.slotBatches]);
-  const publishedSlots = useMemo(() => store.slots.filter((slot) => slot.isPublished), [store.slots]);
   const activeDelegations = useMemo(() => listActiveDelegationsForTutor(store.delegations, user.email), [store.delegations, user.email]);
+  const parsedDates = useMemo(() => parseDateList(dateList), [dateList]);
+  const lockedDates = useMemo(() => parsedDates.filter((targetDate) => isLocked(targetDate)), [parsedDates]);
   const selectedBatchSlots = useMemo(
     () => store.slots.filter((slot) => slot.batchId === selectedBatchId),
     [selectedBatchId, store.slots],
@@ -77,23 +89,49 @@ export function SlotBookingTutorPage() {
   }, [lunchEndTime, lunchStartTime, selectedBatchSlots]);
 
   const createSlots = async () => {
-    const created = await store.createSlots({
-      locationMode,
-      venueId: venue?.id,
-      customLocation,
-      tutorName,
-      ownerName: slotOwnerMode === 'lecturer' ? lecturerName || 'Lecturer' : tutorName,
-      ownerEmail: slotOwnerMode === 'lecturer' ? lecturerEmail : user.email,
-      ownerRole: slotOwnerMode === 'lecturer' ? 'lecturer' : 'tutor',
-      createdBy: user.displayName,
-      createdByRole: 'tutor',
-      date,
-      startTime,
-      durationMinutes,
-      slotCount,
-    });
+    if (!parsedDates.length) {
+      setStatusMessage('Add at least one date before creating slots.');
+      return;
+    }
 
-    setStatusMessage(`Created ${created.slots.length} draft slot${created.slots.length === 1 ? '' : 's'} for ${created.batch.locationLabel}.`);
+    const createdLocations: string[] = [];
+    const skippedDates: string[] = [];
+    let createdSlotTotal = 0;
+
+    for (const targetDate of parsedDates) {
+      try {
+        const created = await store.createSlots({
+          locationMode,
+          venueId: venue?.id,
+          customLocation,
+          tutorName,
+          ownerName: slotOwnerMode === 'lecturer' ? lecturerName || 'Lecturer' : tutorName,
+          ownerEmail: slotOwnerMode === 'lecturer' ? lecturerEmail : user.email,
+          ownerRole: slotOwnerMode === 'lecturer' ? 'lecturer' : 'tutor',
+          createdBy: user.displayName,
+          createdByRole: 'tutor',
+          date: targetDate,
+          startTime,
+          durationMinutes,
+          slotCount,
+        });
+
+        createdLocations.push(created.batch.locationLabel);
+        createdSlotTotal += created.slots.length;
+      } catch (error) {
+        skippedDates.push(`${targetDate}${error instanceof Error ? ` (${error.message})` : ''}`);
+      }
+    }
+
+    if (!createdSlotTotal) {
+      setStatusMessage(skippedDates[0] ? `No slots created. ${skippedDates[0]}` : 'No slots created.');
+      return;
+    }
+
+    setStatusMessage(
+      `Created ${createdSlotTotal} draft slot${createdSlotTotal === 1 ? '' : 's'} across ${createdLocations.length} day${createdLocations.length === 1 ? '' : 's'}.` +
+      (skippedDates.length ? ` Skipped ${skippedDates.length} day${skippedDates.length === 1 ? '' : 's'}.` : ''),
+    );
   };
 
   const openPublishModal = (batchId: string, locationLabel: string) => {
@@ -143,7 +181,7 @@ export function SlotBookingTutorPage() {
 
         <div className="mt-6 space-y-4">
           <div className="space-y-2">
-            <Label className="text-white">Lecturer name</Label>
+            <Label className="text-white">Tutor name</Label>
             <Input value={tutorName} onChange={(event) => setTutorName(event.target.value)} className="border-white/10 bg-[#0d1320] text-white placeholder:text-white/35" />
           </div>
 
@@ -211,8 +249,14 @@ export function SlotBookingTutorPage() {
 
           <div className="grid gap-3 md:grid-cols-2">
             <div className="space-y-2">
-              <Label className="text-white">Date</Label>
-              <Input type="date" value={date} onChange={(event) => setDate(event.target.value)} className="border-white/10 bg-[#0d1320] text-white" />
+              <Label className="text-white">Dates</Label>
+              <Textarea
+                value={dateList}
+                onChange={(event) => setDateList(event.target.value)}
+                className="min-h-28 border-white/10 bg-[#0d1320] text-white"
+                placeholder="2026-05-20\n2026-05-21"
+              />
+              <p className="text-xs text-white/55">Enter one date per line or separate multiple dates with commas.</p>
             </div>
             <div className="space-y-2">
               <Label className="text-white">Start time</Label>
@@ -233,11 +277,11 @@ export function SlotBookingTutorPage() {
 
           <Button
             onClick={createSlots}
-            disabled={locked || (locationMode === 'allocated' ? !venue : !customLocation.trim()) || (slotOwnerMode === 'lecturer' && (!lecturerName.trim() || !lecturerEmail.trim()))}
+            disabled={!parsedDates.length || (locationMode === 'allocated' ? !venue : !customLocation.trim()) || (slotOwnerMode === 'lecturer' && (!lecturerName.trim() || !lecturerEmail.trim()))}
             className="w-full rounded-full bg-primary px-6 py-6 text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
             <CalendarPlus2 className="mr-2 h-4 w-4" />
-            {locked ? 'Schedule Locked' : 'Create Draft Slots'}
+            Create Draft Slots for selected days
           </Button>
 
           <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-white/60">
@@ -245,6 +289,7 @@ export function SlotBookingTutorPage() {
               <Lock className="h-4 w-4 text-primary" />
               {getLockoutCopy()}
             </div>
+            {lockedDates.length > 0 && <p className="mt-2 text-xs text-amber-300">{lockedDates.length} selected day(s) are locked and will be skipped.</p>}
             <div className="mt-2 rounded-xl border border-white/10 bg-[#0d1320] p-3 text-xs text-white/60">
               {mounted
                 ? (activeDelegations.length > 0
@@ -294,37 +339,6 @@ export function SlotBookingTutorPage() {
               </div>
             ))}
             {!draftBatches.length && <p className="text-sm text-white/60">No draft batches yet.</p>}
-          </div>
-        </ScrollArea>
-      </Card>
-
-      <Card className="border-white/10 bg-[#101624]/95 p-6 text-white shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl lg:col-span-2">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-white/45">Published Slots</p>
-            <h3 className="text-2xl font-black text-white">Live venue schedule</h3>
-          </div>
-          <Badge className="rounded-full bg-primary px-3 py-1 text-primary-foreground hover:bg-primary">{store.summary.openSlotCount} open</Badge>
-        </div>
-
-        <ScrollArea className="mt-6 h-[360px] pr-3">
-          <div className="space-y-3">
-            {publishedSlots.map((slot) => (
-              <div key={slot.id} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-bold text-white">{slot.locationLabel}</p>
-                    <p className="text-xs text-white/60">
-                      {slot.date} · {slot.startTime} - {slot.endTime}
-                    </p>
-                    <p className="mt-1 text-xs text-white/60">Owner: {slot.ownerName} · {slot.ownerRole}</p>
-                  </div>
-                  <Badge className={slot.status === 'open' ? 'rounded-full bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/20' : 'rounded-full bg-white/10 text-white/70 hover:bg-white/10'}>{slot.status}</Badge>
-                </div>
-                <p className="mt-2 text-xs text-white/60">Tutor: {slot.tutorName}</p>
-              </div>
-            ))}
-            {!publishedSlots.length && <p className="text-sm text-white/60">No published slots yet.</p>}
           </div>
         </ScrollArea>
       </Card>

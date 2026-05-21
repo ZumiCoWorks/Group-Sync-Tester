@@ -141,3 +141,57 @@ If you are setting this up for real use, the next thing to do is:
 2. Register the Azure AD app.
 3. Connect Firestore.
 4. Test the three app routes locally.
+
+## Deploying As Separate Vercel Apps
+
+Deploy `apps/slot-booking` and `apps/student-public` as two separate Vercel projects.
+
+### 1. Slot Booking project
+
+```bash
+cd apps/slot-booking
+npx vercel link
+npx vercel deploy --prod
+```
+
+Recommended project settings:
+
+- Root Directory: `apps/slot-booking`
+- Framework Preset: `Next.js`
+- Build Command: `npm run build`
+- Install Command: `npm install`
+
+### 2. Student Public project
+
+```bash
+cd apps/student-public
+npx vercel link
+npx vercel deploy --prod
+```
+
+Recommended project settings:
+
+- Root Directory: `apps/student-public`
+- Framework Preset: `Next.js`
+- Build Command: `npm run build`
+- Install Command: `npm install`
+
+### 3. Shared environment variables
+
+Set these on both projects:
+
+- `NEXT_PUBLIC_FIREBASE_CONFIG`
+- `NEXT_PUBLIC_APP_ID`
+- `AUTH_SECRET`
+
+Set these on `apps/slot-booking` if you want staff auth in production:
+
+- `AZURE_AD_CLIENT_ID`
+- `AZURE_AD_CLIENT_SECRET`
+- `AZURE_AD_TENANT_ID`
+
+Set this on `apps/student-public` only for local/demo usage:
+
+- `MOCK_AUTH_ENABLED=true`
+
+For production student use, remove `MOCK_AUTH_ENABLED` so the app uses real auth behavior.

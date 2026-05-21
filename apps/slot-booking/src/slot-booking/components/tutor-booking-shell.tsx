@@ -11,8 +11,8 @@ export function TutorBookingShell({ children }: { children: React.ReactNode }) {
       description="Tutor-only slot creation and publishing. Lecturer ownership is handled separately."
       badgeLabel="Tutor lane"
       navItems={[
-        { href: '/slot-booking', label: 'Overview', description: 'Role launchpad' },
-        { href: '/slot-booking/tutor', label: 'Tutor booking', description: 'Draft and publish batches' },
+        { href: '/', label: 'Overview', description: 'Role launchpad' },
+        { href: '/tutor', label: 'Tutor booking', description: 'Draft and publish batches' },
       ]}
     >
       {children}
