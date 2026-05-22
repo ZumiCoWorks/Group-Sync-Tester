@@ -1,7 +1,6 @@
-'use client';
+"use client";
 
-import { useMemo } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { Suspense, useMemo } from 'react';
 import { signIn } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -9,9 +8,12 @@ import { listMockUsers } from '@/lib/mock-auth-provider';
 
 const isMockMode = process.env.NODE_ENV !== 'production' || process.env.MOCK_AUTH_ENABLED === 'true';
 
-export default function SignInPage() {
-  const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl') || '/';
+function SignInPageContent() {
+  let callbackUrl = '/';
+  if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search);
+    callbackUrl = params.get('callbackUrl') || '/';
+  }
   const mockUsers = useMemo(() => listMockUsers(), []);
 
   return (
@@ -58,5 +60,13 @@ export default function SignInPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#0a0d14]" />}>
+      <SignInPageContent />
+    </Suspense>
   );
 }
