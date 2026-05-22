@@ -3,9 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Clock3, Phone, ShieldCheck } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { Button, Card, Input } from '@afda/ui';
 
 export function StudentPublicHome() {
   const [batchId, setBatchId] = useState('');

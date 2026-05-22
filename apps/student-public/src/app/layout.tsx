@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
-import { AuthSessionProvider } from '@/components/auth/session-provider';
-import { Toaster } from '@/components/ui/toaster';
+import { AuthSessionProvider } from '@afda/auth';
+import { Toaster } from '@afda/ui';
 
 export const metadata: Metadata = {
   title: 'AFDA Student Public',

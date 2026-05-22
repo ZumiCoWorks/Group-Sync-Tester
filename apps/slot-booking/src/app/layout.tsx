@@ -4,7 +4,7 @@ import { getServerSession } from 'next-auth/next';
 import './globals.css';
 import { authOptions } from '@/auth';
 import { isAfdaEmail } from '@/lib/afda-auth';
-import { AuthSessionProvider } from '@/components/auth/session-provider';
+import { AuthSessionProvider } from '@afda/auth';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { SlotBookingAuthProvider } from '@/slot-booking/auth/slot-booking-auth';
 import { getAssignedRole } from '@/lib/role-store';
