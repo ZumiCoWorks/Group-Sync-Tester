@@ -1,0 +1,85 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  # Lint and type-check backend
+  backend-lint:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+      - name: Install dependencies
+        run: cd backend && npm install
+      - name: Lint backend
+        run: cd backend && npm run lint
+      - name: Type check
+        run: cd backend && npm run build
+
+  # Lint and type-check Student Public App
+  student-app-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+          cache: 'npm'
+      - name: Install dependencies
+        run: cd apps/student-public && npm install
+      - name: Type check
+        run: cd apps/student-public && npm run type-check
+      - name: Build
+        run: cd apps/student-public && npm run build
+        env:
+          NEXT_PUBLIC_BACKEND_URL: http://localhost:3001
+
+  # Lint and type-check Slot Booking App
+  staff-app-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+          cache: 'npm'
+      - name: Install dependencies
+        run: cd apps/slot-booking && npm install
+      - name: Type check
+        run: cd apps/slot-booking && npm run type-check
+      - name: Build
+        run: cd apps/slot-booking && npm run build
+        env:
+          NEXT_PUBLIC_BACKEND_URL: http://localhost:3001
+
+  # Deploy to Vercel (only on main branch)
+  deploy:
+    needs: [backend-lint, student-app-lint, staff-app-lint]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: vercel/action@v27
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID_STUDENT }}
+          working-directory: ./apps/student-public
+        env:
+          NEXT_PUBLIC_BACKEND_URL: ${{ secrets.PRODUCTION_BACKEND_URL }}
+
+  # Note: Add similar deploy steps for other apps as needed

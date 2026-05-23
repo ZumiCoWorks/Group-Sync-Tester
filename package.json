@@ -1,0 +1,34 @@
+{
+  "name": "afda-booking-platform",
+  "version": "0.1.0",
+  "description": "AFDA Booking Platform - Complete booking system for AFDA students and staff",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "apps/student-public",
+    "apps/slot-booking",
+    "shared"
+  ],
+  "scripts": {
+    "install:all": "npm install && npm --workspace backend install && npm --workspace @afda/student-public install && npm --workspace @afda/slot-booking install && npm --workspace @afda/shared install",
+    "dev:backend": "npm --workspace backend run dev",
+    "dev:student": "npm --workspace @afda/student-public run dev",
+    "dev:staff": "npm --workspace @afda/slot-booking run dev",
+    "perf:test": "node tests/perf/load-test.mjs",
+    "smoke:test": "./scripts/smoke-test.sh",
+    "build": "npm --workspace backend run build && npm --workspace @afda/student-public run build && npm --workspace @afda/slot-booking run build",
+    "build:backend": "npm --workspace backend run build",
+    "build:student": "npm --workspace @afda/student-public run build",
+    "build:staff": "npm --workspace @afda/slot-booking run build",
+    "lint": "npm --workspace backend run lint && npm --workspace @afda/student-public run lint && npm --workspace @afda/slot-booking run lint",
+    "type-check": "npm --workspace backend run build && npm --workspace @afda/student-public run type-check && npm --workspace @afda/slot-booking run type-check"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "typescript": "^5.2.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
