@@ -1,197 +1,193 @@
-# AFDA Workspace
+# AFDA Booking Platform — Implementation
 
-This workspace contains three AFDA-facing apps built on a shared Next.js + Firebase stack:
+> Implementation of the AFDA Booking Platform as per PRD v1.0 (22 May 2026).
 
-- Group Sync at `/group-sync`
-- Venue Booking at `/venue-booking`
-- Slot Booking at `/slot-booking`
+## Project Structure
 
-The apps are already split at the route level. What you still need to set up is the external infrastructure and environment configuration.
+```
+.
+├── backend/                          # Shared Node.js/Express backend service
+│   ├── src/
+│   │   ├── api/                      # Express routes (batches, bookings, venues, audit, auth)
+│   │   ├── db/                       # Supabase client and database schema
+│   │   ├── middleware/               # Auth, error handling, logging
+│   │   ├── services/                 # Business logic (booking, batch, venue, etc.)
+│   │   ├── types.ts                  # TypeScript interfaces (shared with apps)
+│   │   └── index.ts                  # Entry point
+│   ├── package.json
+│   ├── .env.example
+│   └── tsconfig.json
+│
+├── apps/
+│   ├── student-public/               # Student Public App (Next.js)
+│   │   ├── src/
+│   │   │   ├── pages/                # Route pages
+│   │   │   ├── components/           # Reusable UI components
+│   │   │   ├── api/                  # Client-side API helpers
+│   │   │   ├── hooks/                # Custom React hooks
+│   │   │   ├── styles/               # Global styles
+│   │   │   └── types.ts
+│   │   ├── package.json
+│   │   ├── .env.local.example
+│   │   └── next.config.js
+│   │
+│   └── slot-booking/                 # Slot Booking App (Next.js)
+│       ├── src/
+│       │   ├── pages/
+│       │   ├── components/
+│       │   ├── api/
+│       │   ├── hooks/
+│       │   ├── styles/
+│       │   ├── contexts/             # Auth, batch, booking contexts
+│       │   └── types.ts
+│       ├── package.json
+│       ├── .env.local.example
+│       └── next.config.js
+│
+├── shared/                           # Shared types, utilities, components
+│   ├── types.ts                      # TypeScript interfaces (batches, bookings, users, etc.)
+│   ├── constants.ts                  # Status enums, magic strings
+│   ├── utils.ts                      # Helper functions (date formatting, validation, etc.)
+│   └── package.json
+│
+├── docs/
+│   ├── AFDA_Booking_Platform_PRD.md  # Product Requirements Document
+│   ├── API.md                        # Backend API specification
+│   ├── DATABASE_SCHEMA.md            # Supabase schema and migrations
+│   ├── DEPLOYMENT.md                 # Vercel, Supabase, environment setup
+│   └── IMPLEMENTATION_PLAN.md        # Detailed task breakdown
+│
+├── package.json                      # Root workspace config (if using monorepo tools)
+└── .env.example                      # Example env vars for local development
 
-## What Is Already Built
-
-- Separate app routes and layouts for Group Sync, Venue Booking, and Slot Booking
-- Firebase-backed persistence for sessions, venues, slot batches, bookings, and audits
-- Azure AD sign-in via NextAuth for the booking apps
-- Tutor draft/publish workflow for slot batches
-- Custom location support for slot creation
-- Published-slot filtering on the student booking view
-
-## What You Need To Set Up
-
-### 1. Firebase Project
-
-Create or connect a Firebase project and enable:
-
-- Firestore
-- Authentication if you want Firebase services beyond the current client wrapper
-
-Then paste the Firebase config JSON into your env file.
-
-Required environment values:
-
-- `NEXT_PUBLIC_FIREBASE_CONFIG`
-- `NEXT_PUBLIC_APP_ID`
-
-### 2. Azure AD Application
-
-Register an Azure AD app for authentication and collect:
-
-- Client ID
-- Client Secret
-- Tenant ID
-
-Required environment values:
-
-- `AZURE_AD_CLIENT_ID`
-- `AZURE_AD_CLIENT_SECRET`
-- `AZURE_AD_TENANT_ID`
-- `AUTH_SECRET`
-
-### 3. Allowed Email Domains
-
-Set the allowed email domains for staff and students.
-
-You can use one shared allowlist or separate domains.
-
-Example:
-
-- `AFDA_ALLOWED_EMAIL_DOMAINS="staff.afda.co.za,students.afda.co.za"`
-
-If you do not set the shared allowlist, the app falls back to the staff/student domain env vars.
-
-### 4. Firestore Data Separation
-
-The app uses a shared backend namespace, but the data is separated by collection.
-
-You should verify:
-
-- venue data is going into the venue booking collections
-- slot batches and slots are going into the slot booking collections
-- student bookings remain tied to published slots only
-
-### 5. Deployment Environment Variables
-
-Make sure the same env values exist in:
-
-- local development
-- Vercel or your hosting platform
-- any preview environments
-
-If these are missing, the booking apps will redirect to sign-in or fail to load data correctly.
-
-## Local Setup
-
-1. Install dependencies.
-2. Create a local `.env` file from [.env.example](.env.example).
-3. Fill in Firebase and Azure AD values.
-4. Run the development server.
-5. Open the routes below and verify each flow.
-
-```bash
-npm install
-npm run dev
 ```
 
-## Routes To Verify
+## Tech Stack
 
-- `/` - AFDA app directory
-- `/group-sync` - student grouping app
-- `/venue-booking` - operations venue import app
-- `/slot-booking` - tutor slot dashboard
-- `/slot-booking/tutor` - tutor draft/publish flow
-- `/slot-booking/student` - student booking flow
+| Component | Technology |
+|-----------|-------------|
+| Backend | Node.js 18+ / Express / TypeScript |
+| Frontend | Next.js 14+ / React 18+ / TypeScript |
+| Database | Supabase (PostgreSQL) |
+| Deployment | Vercel (frontend apps + backend Functions) |
+| Auth | Supabase Auth or external SSO (configurable) |
+| Real-time | Supabase Real-time subscriptions |
 
-## Functional Checks
+## Getting Started
 
-### Group Sync
+### Prerequisites
+- Node.js 18+
+- npm or yarn
+- Supabase account (free tier available)
+- Vercel account (free tier available)
 
-- Create a session
-- Join a room as a student
-- Shuffle or group participants
-- Confirm history still works
+### Local Development
 
-### Venue Booking
+1. **Clone and install dependencies:**
+   ```bash
+   cd /Users/zumiww/Documents/AFDAWS\ Rebuild
+   npm install  # if using workspace
 
-- Import a venue spreadsheet
-- Confirm venue records appear in the app
-- Confirm the Thursday lockout prevents late changes when appropriate
+   cd backend && npm install
+   cd ../apps/student-public && npm install
+   cd ../apps/slot-booking && npm install
+   ```
 
-### Slot Booking
+2. **Set up environment variables:**
+   ```bash
+   cp .env.example .env.local
+   # Fill in Supabase credentials, API keys, etc.
+   ```
 
-- Create a draft batch from an allocated venue
-- Create a draft batch using a custom location
-- Publish a batch
-- Confirm only published slots appear to students
-- Book a slot as a student
-- Confirm the calendar invite uses the selected location label
+3. **Initialize Supabase database:**
+   - Create a new Supabase project
+   - Run migrations (detailed in `docs/DATABASE_SCHEMA.md`)
+   - Seed test data (optional)
 
-## Important Operational Notes
+4. **Start backend:**
+   ```bash
+   cd backend
+   npm run dev
+   # API will be available at http://localhost:3001
+   ```
 
-- If Azure sign-in is unavailable, users who are not already authenticated will not be able to enter the booking apps.
-- Published slots are the only student-visible slots.
-- Draft batches stay hidden until a tutor publishes them.
-- The Venue App and Slot App remain independent at the UI level and only share Firestore as a backend.
+5. **Start frontend apps (in separate terminals):**
+   ```bash
+   cd apps/student-public
+   npm run dev
+   # App at http://localhost:3000
 
-## Suggested Next Step
+   cd apps/slot-booking
+   npm run dev
+   # App at http://localhost:3001 (if using dev proxy, or separate port)
+   ```
 
-If you are setting this up for real use, the next thing to do is:
+## MVP Timeline
 
-1. Configure the env vars.
-2. Register the Azure AD app.
-3. Connect Firestore.
-4. Test the three app routes locally.
+**Phase 1: Foundation** (Week 1–2)
+- [ ] Backend API scaffolding (Express, Supabase, auth)
+- [ ] Database schema (batches, bookings, users, audit logs)
+- [ ] Shared types and utilities
 
-## Deploying As Separate Vercel Apps
+**Phase 2: Student Public App** (Week 2–3)
+- [ ] Landing page with batch ID entry
+- [ ] Booking page (slots list, claim button)
+- [ ] Confirmation page and email
+- [ ] Error handling
 
-Deploy `apps/slot-booking` and `apps/student-public` as two separate Vercel projects.
+**Phase 3: Slot Booking App** (Week 2–4)
+- [ ] Dashboard (list batches)
+- [ ] Batch editor (create, edit, publish)
+- [ ] Booking management (view, cancel)
+- [ ] XLSX import (basic validation)
+- [ ] PDF export
 
-### 1. Slot Booking project
+**Phase 4: Integration & Testing** (Week 4–5)
+- [ ] End-to-end testing (batch creation → student claim → export)
+- [ ] Performance and load testing
+- [ ] Security review
 
-```bash
-cd apps/slot-booking
-npx vercel link
-npx vercel deploy --prod
-```
+**Phase 5: Deployment** (Week 5)
+- [ ] Deploy backend to Vercel Functions or separate server
+- [ ] Deploy Student Public App to Vercel
+- [ ] Deploy Slot Booking App to Vercel
+- [ ] Configure DNS and SSL
 
-Recommended project settings:
+## Key Documentation
 
-- Root Directory: `apps/slot-booking`
-- Framework Preset: `Next.js`
-- Build Command: `npm run build`
-- Install Command: `npm install`
+- **[PRD](docs/AFDA_Booking_Platform_PRD.md)**: Full product requirements.
+- **[API Specification](docs/API.md)**: Backend endpoint contracts.
+- **[Database Schema](docs/DATABASE_SCHEMA.md)**: Supabase tables, migrations, audit logging.
+- **[Deployment Guide](docs/DEPLOYMENT.md)**: Vercel, Supabase, environment variables.
+- **[Implementation Plan](docs/IMPLEMENTATION_PLAN.md)**: Detailed task breakdown by phase.
 
-### 2. Student Public project
+## Development Workflow
 
-```bash
-cd apps/student-public
-npx vercel link
-npx vercel deploy --prod
-```
+1. **Create a branch** for each feature/app.
+2. **Write code** with TypeScript and test locally.
+3. **Push to GitHub** and create a Pull Request.
+4. **Run CI/CD** (GitHub Actions) to lint, test, and build preview.
+5. **Review and merge** to main branch.
+6. **Deploy** to staging/production via Vercel.
 
-Recommended project settings:
+## Deployment Independence
 
-- Root Directory: `apps/student-public`
-- Framework Preset: `Next.js`
-- Build Command: `npm run build`
-- Install Command: `npm install`
+Each app can be deployed independently:
 
-### 3. Shared environment variables
+- **Student Public App** deploys to `student.app.example.com` (or `https://app.example.com`)
+- **Slot Booking App** deploys to `staff.app.example.com` (or `https://booking.app.example.com`)
+- **Backend API** deploys to `api.app.example.com` (or Vercel Functions under same domain)
 
-Set these on both projects:
+All apps share the same Supabase instance and base URL for API calls.
 
-- `NEXT_PUBLIC_FIREBASE_CONFIG`
-- `NEXT_PUBLIC_APP_ID`
-- `AUTH_SECRET`
+## Support & Questions
 
-Set these on `apps/slot-booking` if you want staff auth in production:
+For questions or issues, refer to:
+- `docs/IMPLEMENTATION_PLAN.md` for task breakdown
+- `docs/API.md` for backend endpoints
+- `docs/DATABASE_SCHEMA.md` for data model
 
-- `AZURE_AD_CLIENT_ID`
-- `AZURE_AD_CLIENT_SECRET`
-- `AZURE_AD_TENANT_ID`
+---
 
-Set this on `apps/student-public` only for local/demo usage:
-
-- `MOCK_AUTH_ENABLED=true`
-
-For production student use, remove `MOCK_AUTH_ENABLED` so the app uses real auth behavior.
+**Last Updated**: 22 May 2026  
+**Status**: Initial Setup Phase
