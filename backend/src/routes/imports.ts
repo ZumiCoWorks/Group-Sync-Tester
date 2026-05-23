@@ -83,7 +83,7 @@ router.post('/', verifyToken, requireRole(['staff', 'lecturer', 'admin']), (req:
   upload.single('file')(req, res, async (uploadError) => {
     let importJobId: string | null = null;
     let successCount = 0;
-    let errors: ImportErrorRow[] = [];
+    const errors: ImportErrorRow[] = [];
 
     try {
       if (uploadError) {

@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-const PDFDocument = require('pdfkit');
+import PDFDocument from 'pdfkit';
 import xlsx from 'xlsx';
 import { verifyToken, requireRole, AuthRequest } from '../middleware';
 import { ApiError, getBatchById, listBookingsByBatch } from '../db';
