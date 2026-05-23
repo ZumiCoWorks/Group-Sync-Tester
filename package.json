@@ -4,28 +4,27 @@
   "description": "AFDA Booking Platform - Complete booking system for AFDA students and staff",
   "private": true,
   "workspaces": [
-    "backend",
-    "apps/student-public",
-    "apps/slot-booking",
+    "app",
+    "server",
     "shared"
   ],
   "scripts": {
-    "install:all": "npm install && npm --workspace backend install && npm --workspace @afda/student-public install && npm --workspace @afda/slot-booking install && npm --workspace @afda/shared install",
-    "dev:backend": "npm --workspace backend run dev",
-    "dev:student": "npm --workspace @afda/student-public run dev",
-    "dev:staff": "npm --workspace @afda/slot-booking run dev",
+    "dev": "concurrently \"npm --workspace app run dev\" \"npm --workspace server run dev\"",
+    "dev:app": "npm --workspace @afda/app run dev",
+    "dev:server": "npm --workspace @afda/backend run dev",
+    "build": "npm --workspace server run build && npm --workspace @afda/app run build",
+    "build:app": "npm --workspace @afda/app run build",
+    "build:server": "npm --workspace @afda/backend run build",
+    "start": "npm --workspace @afda/app run start",
+    "lint": "npm --workspace server run lint && npm --workspace @afda/app run lint",
+    "type-check": "npm --workspace server run build && npm --workspace @afda/app run type-check",
     "perf:test": "node tests/perf/load-test.mjs",
-    "smoke:test": "./scripts/smoke-test.sh",
-    "build": "npm --workspace backend run build && npm --workspace @afda/student-public run build && npm --workspace @afda/slot-booking run build",
-    "build:backend": "npm --workspace backend run build",
-    "build:student": "npm --workspace @afda/student-public run build",
-    "build:staff": "npm --workspace @afda/slot-booking run build",
-    "lint": "npm --workspace backend run lint && npm --workspace @afda/student-public run lint && npm --workspace @afda/slot-booking run lint",
-    "type-check": "npm --workspace backend run build && npm --workspace @afda/student-public run type-check && npm --workspace @afda/slot-booking run type-check"
+    "smoke:test": "./scripts/smoke-test.sh"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
-    "typescript": "^5.2.0"
+    "typescript": "^5.2.0",
+    "concurrently": "^8.2.0"
   },
   "engines": {
     "node": ">=18.0.0",
