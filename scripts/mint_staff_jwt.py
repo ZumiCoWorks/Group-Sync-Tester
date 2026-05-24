@@ -24,8 +24,9 @@ def load_env(path: pathlib.Path) -> dict[str, str]:
 
 
 if __name__ == "__main__":
+    import os
     env = load_env(pathlib.Path(__file__).resolve().parents[1] / "backend" / ".vercel" / ".env.production.local")
-    secret = env.get("SUPABASE_JWT_SECRET")
+    secret = env.get("SUPABASE_JWT_SECRET") or os.getenv("SUPABASE_JWT_SECRET")
     if not secret:
         raise SystemExit("Missing SUPABASE_JWT_SECRET")
 
