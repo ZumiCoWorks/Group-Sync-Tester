@@ -1,5 +1,5 @@
 {
   "framework": "nextjs",
   "buildCommand": "npm --prefix ../../ run build:slot-app",
-  "outputDirectory": "apps/slot-booking/.next"
+  "outputDirectory": ".next"
 }
