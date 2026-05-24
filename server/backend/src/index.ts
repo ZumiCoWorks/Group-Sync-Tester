@@ -48,19 +48,25 @@ export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
 /**
  * Middleware: CORS
  */
-app.use(
-  cors({
-    origin: [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'http://localhost:3002',
-      process.env.FRONTEND_URL || 'http://localhost:3000',
-    ],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  })
-);
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'https://student-public-zcw-nav-eaze.vercel.app',
+  'https://slot-booking-red.vercel.app',
+  process.env.FRONTEND_URL || 'http://localhost:3000',
+];
+
+const corsOptions = {
+  origin: allowedOrigins,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 200,
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 /**
  * Middleware: JSON parsing

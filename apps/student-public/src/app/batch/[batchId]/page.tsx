@@ -27,7 +27,7 @@ type BookingResponse = {
   student_email: string;
 };
 
-const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || (process.env.NODE_ENV === 'production' ? 'https://afda-api.vercel.app' : 'http://localhost:3001');
 
 export default function BatchPage() {
   const router = useRouter();

@@ -45,26 +45,40 @@ export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   },
 });
 
+// Warn if JWT secret missing — auth.verify relies on this
+if (!process.env.SUPABASE_JWT_SECRET) {
+  logger.warn('SUPABASE_JWT_SECRET not set; /api/auth/verify will fail token verification');
+}
+
 /**
  * Middleware: CORS
+ * Use a function origin checker so we can safely return the request origin
+ * when it's in our allowlist. This avoids returning '*' when credentials=true.
  */
-const allowedOrigins = [
+const allowedOrigins = new Set([
   'http://localhost:3000',
   'http://localhost:3001',
   'http://localhost:3002',
   'https://student-public-zcw-nav-eaze.vercel.app',
   'https://slot-booking-red.vercel.app',
-  process.env.FRONTEND_URL || 'http://localhost:3000',
-];
+  ...(process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',').map((s) => s.trim()) : []),
+].filter(Boolean));
 
-app.use(
-  cors({
-    origin: allowedOrigins,
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  })
-);
+const corsOptions = {
+  origin: (origin: string | undefined, callback: any) => {
+    // Allow non-browser requests (curl, server-to-server) when origin is undefined
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.has(origin)) return callback(null, true);
+    return callback(new Error('CORS policy: Origin not allowed'), false);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 200,
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 /**
  * Middleware: JSON parsing

@@ -66,8 +66,22 @@ jobs:
         env:
           NEXT_PUBLIC_BACKEND_URL: http://localhost:3001
 
-  # Deploy to Vercel (only on main branch)
-  deploy:
+  # Deploy backend to Vercel (only on main branch)
+  deploy-backend:
+    needs: [backend-lint, student-app-lint, staff-app-lint]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: vercel/action@v27
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID_BACKEND }}
+          working-directory: ./
+
+  # Deploy Student Public App to Vercel (only on main branch)
+  deploy-student:
     needs: [backend-lint, student-app-lint, staff-app-lint]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -82,4 +96,28 @@ jobs:
         env:
           NEXT_PUBLIC_BACKEND_URL: ${{ secrets.PRODUCTION_BACKEND_URL }}
 
-  # Note: Add similar deploy steps for other apps as needed
+  # Deploy Slot Booking App to Vercel (only on main branch)
+  deploy-staff:
+    needs: [backend-lint, student-app-lint, staff-app-lint]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: vercel/action@v27
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID_STAFF }}
+          working-directory: ./apps/slot-booking
+        env:
+          NEXT_PUBLIC_BACKEND_URL: ${{ secrets.PRODUCTION_BACKEND_URL }}
+
+  # Test health and ready endpoints
+  test-endpoints:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test health endpoint
+        run: curl -i https://afda-api.vercel.app/api/health
+      - name: Test ready endpoint
+        run: curl -i https://afda-api.vercel.app/api/ready

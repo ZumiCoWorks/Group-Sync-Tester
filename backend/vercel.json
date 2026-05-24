@@ -1,5 +1,5 @@
 {
   "version": 2,
-  "buildCommand": "npm run build && cp -r api dist/ && mkdir -p dist/public && touch dist/public/.gitkeep",
+  "buildCommand": "npm run build",
   "outputDirectory": "dist"
 }

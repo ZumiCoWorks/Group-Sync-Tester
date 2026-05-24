@@ -65,6 +65,10 @@ Set these in the Vercel project for the backend:
 6. Verify `GET /api/health` returns `200`.
 7. Verify authenticated routes work with a production JWT and Supabase connection.
 
+### Important deploy path
+
+When deploying via CLI or GitHub Actions, run the backend deployment from the repository root. The backend project is already configured with `rootDirectory: backend`, so invoking Vercel from inside `backend/` will produce a duplicated path such as `backend/backend` and fail.
+
 ### Notes
 
 - The backend uses the Supabase service role key on the server only.

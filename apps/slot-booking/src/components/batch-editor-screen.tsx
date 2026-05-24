@@ -139,7 +139,7 @@ type BatchFormState = {
   batchCapacity: string;
 };
 
-const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || (process.env.NODE_ENV === 'production' ? 'https://afda-api.vercel.app' : 'http://localhost:3001');
 const AUTH_TOKEN_KEY = 'afda_slot_booking_token';
 
 const emptyFormState = (): BatchFormState => ({

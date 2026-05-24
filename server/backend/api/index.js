@@ -5,7 +5,7 @@ console.log('[API Wrapper] Starting...', {
 });
 
 const serverless = require('serverless-http');
-const app = require('../dist/index').default;
+const app = require('../index').default;
 
 console.log('[API Wrapper] App imported:', typeof app);
 
