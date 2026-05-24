@@ -1,5 +1,4 @@
 {
   "framework": "nextjs",
-  "buildCommand": "npm --prefix ../../ run build:student-app",
-  "outputDirectory": ".next"
+  "buildCommand": "npm run build"
 }

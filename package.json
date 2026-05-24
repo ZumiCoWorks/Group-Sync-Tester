@@ -15,8 +15,6 @@
     "build": "npm --workspace server run build && npm --workspace @afda/app run build",
     "build:app": "npm --workspace @afda/app run build",
     "build:server": "npm --workspace @afda/backend run build",
-    "build:student-app": "cd apps/student-public && npm run build",
-    "build:slot-app": "cd apps/slot-booking && npm run build",
     "start": "npm --workspace @afda/app run start",
     "lint": "npm --workspace server run lint && npm --workspace @afda/app run lint",
     "type-check": "npm --workspace server run build && npm --workspace @afda/app run type-check",
