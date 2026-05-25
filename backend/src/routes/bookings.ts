@@ -67,6 +67,66 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 /**
+ * POST /api/bookings/lookup
+ * Look up a booking by confirmation number and email (public endpoint - no auth required)
+ */
+router.post('/lookup', async (req: Request, res: Response) => {
+  try {
+    const { confirmation_number, student_email } = req.body;
+
+    if (!confirmation_number || !student_email) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Missing confirmation_number or student_email',
+        },
+      });
+    }
+
+    const { data: booking, error } = await (require('../index').supabase)
+      .from('bookings')
+      .select('id, batch_id, confirmation_number, student_name, student_email, status, booked_at, slot:slots(id, start_time, end_time)')
+      .ilike('confirmation_number', confirmation_number.toUpperCase())
+      .ilike('student_email', student_email.toLowerCase())
+      .single();
+
+    if (error || !booking) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'BOOKING_NOT_FOUND',
+          message: 'Booking not found',
+        },
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: booking,
+    });
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return res.status(error.statusCode).json({
+        success: false,
+        error: {
+          code: error.code,
+          message: error.message,
+        },
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An unexpected error occurred',
+      },
+    });
+  }
+});
+
+/**
  * GET /api/bookings?batchId=X (authenticated, staff/lecturer/ops only)
  * List all bookings for a batch
  */

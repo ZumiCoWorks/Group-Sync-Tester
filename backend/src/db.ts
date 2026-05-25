@@ -3,6 +3,7 @@
  */
 import { supabase } from './index';
 import pino from 'pino';
+import { randomUUID } from 'crypto';
 
 const logger = pino();
 
@@ -32,6 +33,8 @@ export interface CreateBatchInput {
   slot_duration_minutes: number;
   per_slot_capacity?: number;
   batch_capacity?: number | null;
+  lunch_break_start?: string;
+  lunch_break_end?: string;
   slots?: BatchSlotInput[];
 }
 
@@ -236,10 +239,97 @@ export async function listBatches(status?: string) {
   return data || [];
 }
 
+const DEFAULT_DAY_START = '09:00';
+const DEFAULT_DAY_END = '17:00';
+const DEFAULT_LUNCH_START = '13:00';
+const DEFAULT_LUNCH_END = '14:00';
+
+function parseTimeToMinutes(time: string) {
+  const [hours, minutes] = time.split(':').map((part) => Number(part));
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
+    return NaN;
+  }
+  return hours * 60 + minutes;
+}
+
+function setTimeOnDate(sourceDate: Date, time: string) {
+  const [hours, minutes] = time.split(':').map((part) => Number(part));
+  const nextDate = new Date(sourceDate);
+  nextDate.setHours(hours, minutes, 0, 0);
+  return nextDate;
+}
+
+function generateSlotsWithLunchBreak(
+  batchId: string,
+  dateRangeStart: string,
+  dateRangeEnd: string,
+  slotDurationMinutes: number,
+  capacity: number,
+  lunchStart = DEFAULT_LUNCH_START,
+  lunchEnd = DEFAULT_LUNCH_END
+) {
+  const slotsToInsert: Array<{
+    batch_id: string;
+    start_time: string;
+    end_time: string;
+    capacity: number;
+    booking_count: number;
+  }> = [];
+
+  const startDate = new Date(dateRangeStart);
+  const endDate = new Date(dateRangeEnd);
+  const lunchStartMinutes = parseTimeToMinutes(lunchStart);
+  const lunchEndMinutes = parseTimeToMinutes(lunchEnd);
+  const normalizedLunchEnd = Number.isFinite(lunchEndMinutes) ? lunchEnd : DEFAULT_LUNCH_END;
+  const normalizedLunchStartMinutes = Number.isFinite(lunchStartMinutes) ? lunchStartMinutes : parseTimeToMinutes(DEFAULT_LUNCH_START);
+  const normalizedLunchEndMinutes = Number.isFinite(lunchEndMinutes) ? lunchEndMinutes : parseTimeToMinutes(DEFAULT_LUNCH_END);
+
+  for (let currentDate = new Date(startDate); currentDate <= endDate; currentDate.setDate(currentDate.getDate() + 1)) {
+    let cursor = setTimeOnDate(currentDate, DEFAULT_DAY_START);
+    const dayEnd = setTimeOnDate(currentDate, DEFAULT_DAY_END);
+
+    while (cursor < dayEnd) {
+      const cursorMinutes = cursor.getHours() * 60 + cursor.getMinutes();
+
+      if (cursorMinutes >= normalizedLunchStartMinutes && cursorMinutes < normalizedLunchEndMinutes) {
+        cursor = setTimeOnDate(cursor, normalizedLunchEnd);
+        continue;
+      }
+
+      const slotEnd = new Date(cursor);
+      slotEnd.setMinutes(slotEnd.getMinutes() + slotDurationMinutes);
+      const slotEndMinutes = slotEnd.getHours() * 60 + slotEnd.getMinutes();
+
+      if (cursorMinutes < normalizedLunchStartMinutes && slotEndMinutes > normalizedLunchStartMinutes) {
+        cursor = setTimeOnDate(cursor, normalizedLunchEnd);
+        continue;
+      }
+
+      if (slotEnd > dayEnd) {
+        break;
+      }
+
+      slotsToInsert.push({
+        batch_id: batchId,
+        start_time: cursor.toISOString(),
+        end_time: slotEnd.toISOString(),
+        capacity,
+        booking_count: 0,
+      });
+
+      cursor = slotEnd;
+    }
+  }
+
+  return slotsToInsert;
+}
+
 /**
  * Create a batch and optionally seed slots in the same call.
  */
 export async function createBatch(createdByUserId: string, input: CreateBatchInput) {
+  const slotCapacity = input.per_slot_capacity ?? 1;
+  const publicViewToken = randomUUID().replace(/-/g, '');
   const { data: batch, error: batchError } = await supabase
     .from('batches')
     .insert({
@@ -247,12 +337,13 @@ export async function createBatch(createdByUserId: string, input: CreateBatchInp
       description: input.description || null,
       created_by_user_id: createdByUserId,
       status: 'draft',
-      venue_id: input.venue_id || null,
+      venue_id: input.venue_id ?? null,
       date_range_start: input.date_range_start,
       date_range_end: input.date_range_end,
       slot_duration_minutes: input.slot_duration_minutes,
-      per_slot_capacity: input.per_slot_capacity || 1,
+      per_slot_capacity: slotCapacity,
       batch_capacity: input.batch_capacity ?? null,
+      public_view_token: publicViewToken,
       booking_count: 0,
       total_slots: 0,
     })
@@ -264,15 +355,25 @@ export async function createBatch(createdByUserId: string, input: CreateBatchInp
     throw new ApiError(500, 'DB_ERROR', 'Failed to create batch');
   }
 
-  if (input.slots && input.slots.length > 0) {
-    const slotsToInsert = input.slots.map((slot) => ({
-      batch_id: batch.id,
-      start_time: slot.start_time,
-      end_time: slot.end_time,
-      capacity: slot.capacity ?? input.per_slot_capacity ?? 1,
-      booking_count: 0,
-    }));
+  const slotsToInsert = input.slots && input.slots.length > 0
+    ? input.slots.map((slot) => ({
+        batch_id: batch.id,
+        start_time: slot.start_time,
+        end_time: slot.end_time,
+        capacity: slotCapacity,
+        booking_count: 0,
+      }))
+    : generateSlotsWithLunchBreak(
+        batch.id,
+        input.date_range_start,
+        input.date_range_end,
+        input.slot_duration_minutes,
+        slotCapacity,
+        input.lunch_break_start,
+        input.lunch_break_end
+      );
 
+  if (slotsToInsert.length > 0) {
     const { error: slotsError } = await supabase.from('slots').insert(slotsToInsert);
 
     if (slotsError) {
@@ -380,6 +481,41 @@ export async function publishBatch(batchId: string, userId?: string) {
     previous_status: batch.status,
     new_status: 'published',
   }, userId);
+
+  return updatedBatch;
+}
+
+/**
+ * Close (archive) a published batch so no new bookings can be created.
+ */
+export async function closeBatch(batchId: string, userId?: string) {
+  const { data: batch, error: fetchError } = await supabase
+    .from('batches')
+    .select('id, status')
+    .eq('id', batchId)
+    .single();
+
+  if (fetchError || !batch) {
+    throw new ApiError(404, 'BATCH_NOT_FOUND', 'Batch not found');
+  }
+
+  if (batch.status === 'closed' || batch.status === 'archived') {
+    return batch;
+  }
+
+  const { data: updatedBatch, error: updateError } = await supabase
+    .from('batches')
+    .update({ status: 'closed' })
+    .eq('id', batchId)
+    .select()
+    .single();
+
+  if (updateError || !updatedBatch) {
+    logger.error(updateError, 'Error closing batch');
+    throw new ApiError(500, 'DB_ERROR', 'Failed to close batch');
+  }
+
+  await logAuditEvent('batch_closed', 'batch', batchId, { previous_status: batch.status, new_status: 'closed' }, userId);
 
   return updatedBatch;
 }
@@ -537,7 +673,7 @@ export async function createBooking(
     // Fetch current slot to check capacity
     const { data: slotData, error: slotError } = await supabase
       .from('slots')
-      .select('*, batch:batches(batch_capacity, booking_count)')
+      .select('*, batch:batches(batch_capacity, booking_count, status)')
       .eq('id', slotId)
       .single();
 
@@ -545,9 +681,31 @@ export async function createBooking(
       throw new ApiError(404, 'SLOT_NOT_FOUND', 'Slot not found');
     }
 
-    // Check if slot is full
-    if (slotData.booking_count >= slotData.capacity) {
+    // Enforce slot capacity (respect slot.capacity for legacy or configured batches)
+    const slotCapacity = (slotData.capacity as number) ?? 1;
+    if ((slotData.booking_count || 0) >= slotCapacity) {
       throw new ApiError(409, 'SLOT_FULL', 'This slot is at capacity');
+    }
+
+    // Prevent the same student from booking multiple slots in the same batch
+    const { data: existingBookings, error: existingBookingsError } = await supabase
+      .from('bookings')
+      .select('id, status')
+      .eq('batch_id', slotData.batch_id)
+      .ilike('student_email', studentEmail.toLowerCase())
+      .neq('status', 'cancelled');
+
+    if (existingBookingsError) {
+      logger.error(existingBookingsError, 'Error checking existing bookings for student');
+    }
+
+    if (existingBookings && existingBookings.length > 0) {
+      throw new ApiError(409, 'STUDENT_ALREADY_BOOKED', 'Student already has a booking for this batch');
+    }
+
+    // Check batch status (only allow bookings when published)
+    if (!slotData.batch || slotData.batch.status !== 'published') {
+      throw new ApiError(403, 'BATCH_NOT_OPEN', 'Bookings for this batch are closed');
     }
 
     // Check batch capacity

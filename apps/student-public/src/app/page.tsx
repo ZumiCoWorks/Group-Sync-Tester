@@ -8,7 +8,7 @@ export default function Home() {
   const [batchId, setBatchId] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || (process.env.NODE_ENV === 'production' ? 'https://afda-api.vercel.app' : 'http://localhost:3001');
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || (process.env.NODE_ENV === 'production' ? 'https://afda-core-backend-bmi3qmvu5-zcw-nav-eaze.vercel.app' : 'http://localhost:3001');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

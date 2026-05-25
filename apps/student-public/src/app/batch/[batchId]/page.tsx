@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 
 type Batch = {
@@ -27,12 +27,30 @@ type BookingResponse = {
   student_email: string;
 };
 
-const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || (process.env.NODE_ENV === 'production' ? 'https://afda-api.vercel.app' : 'http://localhost:3001');
+const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || (process.env.NODE_ENV === 'production' ? 'https://afda-core-backend-bmi3qmvu5-zcw-nav-eaze.vercel.app' : 'http://localhost:3001');
+
+const formatSlotDate = (value: string) =>
+  new Date(value).toLocaleDateString([], {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+
+const formatSlotTime = (value: string) =>
+  new Date(value).toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+
+const formatSlotWindow = (slot: Slot) =>
+  `${formatSlotDate(slot.start_time)} • ${formatSlotTime(slot.start_time)} - ${formatSlotTime(slot.end_time)}`;
 
 export default function BatchPage() {
   const router = useRouter();
   const params = useParams();
   const batchId = params.batchId as string;
+  const detailsRef = useRef<HTMLElement | null>(null);
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
 
   const [batch, setBatch] = useState<Batch | null>(null);
   const [slots, setSlots] = useState<Slot[]>([]);
@@ -92,10 +110,29 @@ export default function BatchPage() {
     [slots, selectedSlotId]
   );
 
-  const availableSlots = useMemo(
-    () => slots.filter((slot) => slot.booking_count < slot.capacity),
+  const openSlots = useMemo(
+    // Show slots that still have space (booking_count < capacity)
+    () => slots.filter((slot) => (slot.booking_count || 0) < (slot.capacity || 1)),
     [slots]
   );
+
+  const slotsByDay = useMemo(() => {
+    return openSlots.reduce<Record<string, Slot[]>>((acc, slot) => {
+      const key = new Date(slot.start_time).toDateString();
+      acc[key] = acc[key] || [];
+      acc[key].push(slot);
+      return acc;
+    }, {} as Record<string, Slot[]>);
+  }, [openSlots]);
+
+  const handleSlotSelect = (slotId: string) => {
+    setSelectedSlotId(slotId);
+
+    window.setTimeout(() => {
+      detailsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      nameInputRef.current?.focus();
+    }, 0);
+  };
 
   const retryLoad = () => {
     setLoading(true);
@@ -175,7 +212,7 @@ export default function BatchPage() {
     return (
       <div className="flex min-h-screen items-center justify-center px-4 text-center">
         <div className="max-w-md space-y-3">
-          <h1 className="text-3xl font-semibold text-white">Oops</h1>
+          <h1 className="text-3xl font-semibold text-white">Booking unavailable</h1>
           <p className="text-slate-300">{error || 'This batch is no longer available.'}</p>
           <button
             type="button"
@@ -202,45 +239,101 @@ export default function BatchPage() {
           >
             Back
           </button>
-          <p className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium uppercase tracking-[0.2em] text-slate-300">
-            Batch {batchId}
-          </p>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => router.push(`/batch/${batchId}/student-roster`)}
+              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/10"
+            >
+              View roster
+            </button>
+            <p className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium uppercase tracking-[0.2em] text-slate-300">
+              Batch {batchId}
+            </p>
+          </div>
         </div>
 
         <div className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr]">
           <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6 shadow-2xl shadow-cyan-950/30 backdrop-blur-xl sm:p-8">
-            <div className="space-y-4">
+            <div className="space-y-5">
               <div className="inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">
-                Booking details
+                Step 1 of 2
               </div>
               <div>
-                <h1 className="text-4xl font-semibold tracking-tight text-white">{batch?.title}</h1>
-                {batch?.description && <p className="mt-3 text-slate-300">{batch.description}</p>}
+                <h1 className="text-4xl font-semibold tracking-tight text-white">Choose your slot, then confirm.</h1>
+                {batch?.description ? (
+                  <p className="mt-3 text-slate-300">{batch.description}</p>
+                ) : (
+                  <p className="mt-3 text-slate-300">
+                    Pick one open slot. We’ll hold it for you once you submit the form.
+                  </p>
+                )}
               </div>
-            </div>
 
-            <div className="mt-8 grid gap-4 sm:grid-cols-2">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Available slots</p>
-                <p className="mt-2 text-2xl font-semibold text-white">{availableSlots.length}</p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Slots available</p>
+                  <p className="mt-2 text-2xl font-semibold text-white">{openSlots.length}</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Current status</p>
+                  <p className="mt-2 text-2xl font-semibold capitalize text-white">
+                    {batch?.status.split('_').join(' ')}
+                  </p>
+                </div>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Batch status</p>
-                <p className="mt-2 text-2xl font-semibold text-white capitalize">
-                  {batch?.status.split('_').join(' ')}
-                </p>
-              </div>
-            </div>
 
-            <div className="mt-8 space-y-3 text-sm leading-6 text-slate-300">
-              <p>
-                Select one of the open slots and enter your details. Once submitted, you’ll be taken
-                straight to a confirmation screen.
-              </p>
-              <p>
-                If the slot fills up while you’re booking, we’ll show a clear message so you can pick
-                another time.
-              </p>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-slate-300">
+                <p className="font-medium text-white">How it works</p>
+                <ol className="mt-2 space-y-1 pl-5 list-decimal">
+                  <li>Select a time that is still open.</li>
+                  <li>Enter your details and confirm the booking.</li>
+                </ol>
+              </div>
+
+              <div className="mt-6">
+                <h3 className="mb-3 text-sm font-semibold text-slate-300">Calendar view — pick a slot</h3>
+                <div className="overflow-x-auto lg:overflow-x-visible">
+                  <div className="flex flex-col gap-4 md:grid md:grid-cols-2 lg:grid-cols-3">
+                    {Object.entries(slotsByDay)
+                      .sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime())
+                      .map(([dayKey, daySlots]) => (
+                        <div key={dayKey} className="min-w-[240px] flex-shrink-0 md:min-w-unset">
+                          <div className="mb-2">
+                            <p className="text-sm font-semibold text-white">{formatSlotDate(daySlots[0]?.start_time || dayKey)}</p>
+                            <p className="text-xs text-slate-400">
+                              {daySlots.length} open slots
+                            </p>
+                          </div>
+
+                          <div className="space-y-2">
+                            {daySlots
+                              .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
+                              .map((s) => {
+                                const isSelected = selectedSlotId === s.id;
+                                return (
+                                  <button
+                                    key={s.id}
+                                    onClick={() => handleSlotSelect(s.id)}
+                                    className={`w-full text-left rounded-2xl border px-3 py-2 transition ${isSelected ? 'border-cyan-400/50 bg-cyan-400/10' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <div>
+                                        <p className="text-sm font-medium text-white">{formatSlotTime(s.start_time)} - {formatSlotTime(s.end_time)}</p>
+                                      </div>
+                                      <div className="rounded-full px-2 py-1 text-xs font-semibold bg-emerald-400/10 text-emerald-200">
+                                        Open
+                                      </div>
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              </div>
             </div>
 
             {slotsError && (
@@ -259,69 +352,31 @@ export default function BatchPage() {
             )}
           </section>
 
-          <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6 shadow-2xl shadow-cyan-950/30 backdrop-blur-xl sm:p-8">
+          <section ref={detailsRef} className="rounded-3xl border border-white/10 bg-slate-950/70 p-6 shadow-2xl shadow-cyan-950/30 backdrop-blur-xl sm:p-8 lg:sticky lg:top-8 lg:self-start">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <h2 className="text-2xl font-semibold text-white">Choose a slot</h2>
-                <p className="mt-2 text-sm text-slate-300">Only available slots are shown below.</p>
+                <div className="inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">
+                  Step 2 of 2
+                </div>
+                <h2 className="mt-4 text-2xl font-semibold text-white">Enter your details</h2>
+                <p className="mt-2 text-sm text-slate-300">Select a slot and this form becomes the next step automatically.</p>
               </div>
 
-              <div className="space-y-3">
-                {slots.length === 0 ? (
-                  <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-300">
-                    No slots available for this batch.
-                  </div>
-                ) : (
-                  slots.map((slot) => {
-                    const available = slot.booking_count < slot.capacity;
-                    const isSelected = slot.id === selectedSlotId;
-                    return (
-                      <label
-                        key={slot.id}
-                          className={`flex cursor-pointer flex-col gap-3 rounded-2xl border p-4 transition sm:flex-row sm:items-center sm:justify-between ${
-                          isSelected
-                            ? 'border-cyan-400/50 bg-cyan-400/10'
-                            : 'border-white/10 bg-white/5 hover:bg-white/10'
-                        } ${!available ? 'opacity-50' : ''}`}
-                      >
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-3">
-                            <input
-                              type="radio"
-                              name="slot"
-                              value={slot.id}
-                              checked={isSelected}
-                              onChange={() => setSelectedSlotId(slot.id)}
-                              disabled={!available}
-                              className="h-4 w-4 border-white/20 bg-transparent text-cyan-400 focus:ring-cyan-400"
-                            />
-                            <p className="font-medium text-white">
-                              {new Date(slot.start_time).toLocaleString()}
-                            </p>
-                          </div>
-                          <p className="pl-7 text-sm text-slate-300">
-                            {slot.booking_count} of {slot.capacity} claimed
-                          </p>
-                        </div>
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                            available
-                              ? 'bg-emerald-400/10 text-emerald-200'
-                              : 'bg-slate-500/20 text-slate-300'
-                          }`}
-                        >
-                          {available ? 'Open' : 'Full'}
-                        </span>
-                      </label>
-                    );
-                  })
-                )}
-              </div>
+              {selectedSlot ? (
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
+                  Selected slot: <span className="font-medium text-white">{formatSlotWindow(selectedSlot)}</span>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+                  Pick a slot on the left to continue.
+                </div>
+              )}
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label className="mb-2 block text-sm font-medium text-slate-200">Full name</label>
                   <input
+                    ref={nameInputRef}
                     type="text"
                     value={studentName}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setStudentName(e.target.value)}
@@ -355,12 +410,6 @@ export default function BatchPage() {
                 />
               </div>
 
-              {selectedSlot && (
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300 sm:sticky sm:bottom-4">
-                  Selected slot: <span className="font-medium text-white">{new Date(selectedSlot.start_time).toLocaleString()}</span>
-                </div>
-              )}
-
               {error && (
                 <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">
                   {error}
@@ -369,10 +418,10 @@ export default function BatchPage() {
 
               <button
                 type="submit"
-                disabled={submitting || !selectedSlotId || slots.length === 0}
+                disabled={submitting || !selectedSlotId || openSlots.length === 0}
                 className="inline-flex w-full items-center justify-center rounded-2xl bg-cyan-400 px-4 py-3.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-slate-500"
               >
-                {submitting ? 'Submitting booking…' : 'Confirm booking'}
+                {submitting ? 'Submitting booking…' : 'Reserve this slot'}
               </button>
             </form>
           </section>

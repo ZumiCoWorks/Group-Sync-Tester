@@ -1,3 +1,25 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+	--afda-red: #c53030;
+	--afda-dark: #0f1724;
+	--afda-accent: #e53e3e;
+	--afda-teal: #06b6d4;
+	--afda-bg: #0b1220;
+}
+
+body {
+	background: linear-gradient(180deg, rgba(11,18,32,0.6), rgba(8,12,20,0.9));
+	color: #e6eef6;
+}
+
+.afda-brand-btn {
+	background-color: var(--afda-red);
+	color: white;
+}
+
+.afda-accent {
+	color: var(--afda-accent);
+}

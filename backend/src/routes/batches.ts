@@ -1,8 +1,37 @@
 import { Router, Request, Response } from 'express';
 import { verifyToken, requireRole, AuthRequest } from '../middleware';
-import { createBatch, getBatchById, getSlotsByBatchId, listBatches, publishBatch, updateBatch, ApiError } from '../db';
+import { createBatch, getBatchById, getSlotsByBatchId, listBatches, listBookingsByBatch, publishBatch, updateBatch, closeBatch, ApiError } from '../db';
+import { supabase } from '../index';
 
 const router = Router();
+
+async function ensureStaffIdentity(userId: string, email: string) {
+  const staffRecord = {
+    id: userId,
+    email,
+    first_name: 'Staff',
+    last_name: 'Member',
+    role: 'staff',
+  };
+
+  const { error: userError } = await supabase
+    .from('users')
+    .upsert(staffRecord, { onConflict: 'id' });
+
+  if (userError) {
+    throw userError;
+  }
+
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .upsert({ id: userId, email, role: 'staff' }, { onConflict: 'id' });
+
+  if (profileError) {
+    logger.error(profileError, 'Error ensuring profiles row');
+  }
+}
+
+const logger = console;
 
 /**
  * GET /api/batches
@@ -94,6 +123,50 @@ router.get('/:batchId', async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/batches/internal/:batchId
+ * Fetch a single batch by ID for authenticated staff users, including drafts.
+ */
+router.get('/internal/:batchId', verifyToken, requireRole(['staff', 'lecturer', 'admin']), async (req: Request, res: Response) => {
+  try {
+    const { batchId } = req.params;
+    const batch = await getBatchById(batchId);
+
+    if (!batch) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'BATCH_NOT_FOUND',
+          message: 'Batch not found',
+        },
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: batch,
+    });
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return res.status(error.statusCode).json({
+        success: false,
+        error: {
+          code: error.code,
+          message: error.message,
+        },
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An unexpected error occurred',
+      },
+    });
+  }
+});
+
+/**
  * GET /api/batches/:batchId/slots
  * Fetch all slots for a batch (public endpoint)
  */
@@ -140,6 +213,123 @@ router.get('/:batchId/slots', async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/batches/:batchId/roster?token=...
+ * Public lecturer roster link with tokenized access.
+ */
+router.get('/:batchId/roster', async (req: Request, res: Response) => {
+  try {
+    const { batchId } = req.params;
+    const token = typeof req.query.token === 'string' ? req.query.token.trim() : '';
+
+    if (!token) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'TOKEN_REQUIRED',
+          message: 'A roster access token is required',
+        },
+      });
+    }
+
+    const batch = await getBatchById(batchId);
+
+    if (!batch || batch.status !== 'published' || !batch.public_view_token || batch.public_view_token !== token) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'ROSTER_NOT_FOUND',
+          message: 'Roster not available',
+        },
+      });
+    }
+
+    const bookings = await listBookingsByBatch(batchId);
+    const slots = await getSlotsByBatchId(batchId);
+
+    return res.json({
+      success: true,
+      data: {
+        batch: {
+          id: batch.id,
+          title: batch.title,
+          status: batch.status,
+          booking_count: batch.booking_count,
+          total_slots: batch.total_slots,
+        },
+        slots,
+        bookings,
+      },
+    });
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return res.status(error.statusCode).json({
+        success: false,
+        error: {
+          code: error.code,
+          message: error.message,
+        },
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An unexpected error occurred',
+      },
+    });
+  }
+});
+
+/**
+ * GET /api/batches/:batchId/bookings-public
+ * Public endpoint to fetch bookings for a batch (for student roster view)
+ * Only returns data for published batches
+ */
+router.get('/:batchId/bookings-public', async (req: Request, res: Response) => {
+  try {
+    const { batchId } = req.params;
+
+    const batch = await getBatchById(batchId);
+
+    if (!batch || batch.status !== 'published') {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'BATCH_NOT_FOUND',
+          message: 'Batch not found or not available',
+        },
+      });
+    }
+
+    const bookings = await listBookingsByBatch(batchId);
+
+    return res.json({
+      success: true,
+      data: bookings.filter((b) => b.status === 'confirmed'),
+    });
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return res.status(error.statusCode).json({
+        success: false,
+        error: {
+          code: error.code,
+          message: error.message,
+        },
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An unexpected error occurred',
+      },
+    });
+  }
+});
+
+/**
  * POST /api/batches (authenticated, staff/lecturer only)
  * Create a new batch
  */
@@ -147,6 +337,7 @@ router.post('/', verifyToken, requireRole(['staff', 'lecturer', 'admin']), async
   try {
     const authReq = req as AuthRequest;
     const userId = authReq.user?.id;
+    const userEmail = authReq.user?.email || 'staff@afda.co.za';
 
     if (!userId) {
       return res.status(401).json({
@@ -167,6 +358,8 @@ router.post('/', verifyToken, requireRole(['staff', 'lecturer', 'admin']), async
       slotDurationMinutes,
       perSlotCapacity,
       batchCapacity,
+      lunchBreakStart,
+      lunchBreakEnd,
       slots,
     } = req.body;
 
@@ -180,6 +373,19 @@ router.post('/', verifyToken, requireRole(['staff', 'lecturer', 'admin']), async
       });
     }
 
+    try {
+      await ensureStaffIdentity(userId, userEmail);
+    } catch (profileErr) {
+      logger.error(profileErr, 'Failed to bootstrap staff identity');
+      return res.status(500).json({
+        success: false,
+        error: {
+          code: 'USER_BOOTSTRAP_FAILED',
+          message: 'Unable to prepare staff account for batch creation',
+        },
+      });
+    }
+
     const batch = await createBatch(userId, {
       title,
       description,
@@ -189,6 +395,8 @@ router.post('/', verifyToken, requireRole(['staff', 'lecturer', 'admin']), async
       slot_duration_minutes: Number(slotDurationMinutes),
       per_slot_capacity: perSlotCapacity ? Number(perSlotCapacity) : 1,
       batch_capacity: batchCapacity !== undefined && batchCapacity !== null ? Number(batchCapacity) : null,
+      lunch_break_start: typeof lunchBreakStart === 'string' && lunchBreakStart.trim() ? lunchBreakStart.trim() : undefined,
+      lunch_break_end: typeof lunchBreakEnd === 'string' && lunchBreakEnd.trim() ? lunchBreakEnd.trim() : undefined,
       slots: Array.isArray(slots) ? slots : undefined,
     });
 
@@ -306,6 +514,27 @@ router.post('/:batchId/publish', verifyToken, requireRole(['staff', 'lecturer', 
         message: 'An unexpected error occurred',
       },
     });
+  }
+});
+
+/**
+ * POST /api/batches/:batchId/close
+ * Close (archive) a published batch so no new bookings can be made.
+ */
+router.post('/:batchId/close', verifyToken, requireRole(['staff', 'lecturer', 'admin']), async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthRequest;
+    const userId = authReq.user?.id;
+    const { batchId } = req.params;
+
+    const batch = await closeBatch(batchId, userId);
+
+    return res.json({ success: true, data: batch });
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return res.status(error.statusCode).json({ success: false, error: { code: error.code, message: error.message } });
+    }
+    return res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' } });
   }
 });
 

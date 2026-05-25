@@ -28,7 +28,6 @@ const logger = pino({
 
 // Initialize Express app
 const app: Express = express();
-const PORT = process.env.BACKEND_PORT || 3001;
 
 // Initialize Supabase client
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -44,11 +43,6 @@ export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
     persistSession: false,
   },
 });
-
-// Warn if JWT secret missing — auth.verify relies on this
-if (!process.env.SUPABASE_JWT_SECRET) {
-  logger.warn('SUPABASE_JWT_SECRET not set; /api/auth/verify will fail token verification');
-}
 
 /**
  * Middleware: CORS
@@ -153,7 +147,6 @@ import bookingsRouter from './routes/bookings';
 import exportsRouter from './routes/exports';
 import importsRouter from './routes/imports';
 import auditLogsRouter from './routes/audit-logs';
-// TODO: add venuesRouter
 
 // Mount routers
 app.use('/api/auth', authRouter);
@@ -199,13 +192,12 @@ app.use((req: Request, res: Response) => {
 });
 
 /**
- * Start server when executed directly.
- * In Vercel Functions the app is imported by the serverless handler instead.
+ * Start server execution safely context-aware
  */
-const startServer = () => {
+if (require.main === module && process.env.NODE_ENV !== 'production') {
+  const PORT = process.env.BACKEND_PORT || 3001;
   const server = app.listen(PORT, () => {
-    logger.info(`Backend server running at http://localhost:${PORT}`);
-    logger.info(`Environment: ${NODE_ENV}`);
+    logger.info(`Backend server running locally at http://localhost:${PORT}`);
   });
 
   process.on('SIGTERM', () => {
@@ -215,10 +207,6 @@ const startServer = () => {
       process.exit(0);
     });
   });
-};
-
-if (require.main === module) {
-  startServer();
 }
 
 process.on('unhandledRejection', (reason) => {

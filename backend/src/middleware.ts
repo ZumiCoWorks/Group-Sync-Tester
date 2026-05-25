@@ -1,96 +1,110 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
-import pino from 'pino';
+import { createClient } from '@supabase/supabase-js';
 
-const logger = pino();
-
+// Define the custom request interface your sub-routers require
 export interface AuthRequest extends Request {
-  user?: {
-    id: string;
-    email: string;
-    role: string;
-    iat: number;
-    exp: number;
-  };
+  user?: any;
 }
 
+// Support alternative named interfaces if used by other files
+export interface AuthenticatedRequest extends AuthRequest {}
+
+// Initialize an isolated Supabase Client for direct JWT validation
+const supabaseUrl = process.env.SUPABASE_URL || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
+const authCryptoClient = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: { persistSession: false }
+});
+
 /**
- * Middleware: Verify JWT token from Authorization header
+ * Token Verification Middleware
  */
-export const verifyToken = (req: AuthRequest, res: Response, next: NextFunction) => {
-  const token = req.headers.authorization?.split(' ')[1];
-
-  if (!token) {
-    return res.status(401).json({
-      success: false,
-      error: {
-        code: 'MISSING_TOKEN',
-        message: 'Authorization token is required',
-      },
-    });
-  }
-
+export async function requireAuth(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const decoded = jwt.verify(token, process.env.SUPABASE_JWT_SECRET || '');
-    req.user = decoded as AuthRequest['user'];
-    next();
-  } catch (err) {
-    logger.error(err, 'Token verification failed');
-    return res.status(401).json({
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        success: false,
+        error: {
+          code: 'MISSING_TOKEN',
+          message: 'No authorization token provided',
+        },
+      });
+    }
+
+    const token = authHeader.split(' ')[1];
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return res.status(500).json({
+        success: false,
+        error: {
+          code: 'SERVER_CONFIG_ERROR',
+          message: 'Backend environment variables are missing at runtime.',
+        },
+      });
+    }
+
+    // Verify token directly with Supabase Engine
+    const { data: { user }, error } = await authCryptoClient.auth.getUser(token);
+
+    if (error || !user) {
+      return res.status(401).json({
+        success: false,
+        error: {
+          code: 'INVALID_TOKEN',
+          message: 'Authorization token is invalid or expired',
+        },
+      });
+    }
+
+    // Bind structural user values onto request lifecycle
+    req.user = user;
+    return next();
+  } catch (error) {
+    return res.status(500).json({
       success: false,
       error: {
-        code: 'INVALID_TOKEN',
-        message: 'Authorization token is invalid or expired',
+        code: 'INTERNAL_ERROR',
+        message: 'An error occurred during token authentication verification',
       },
     });
   }
-};
+}
+
+// Named alias to satisfy router imports matching the original layout
+export const verifyToken = requireAuth;
 
 /**
- * Middleware: Check user role
+ * Role Authorization Middleware
  */
-export const requireRole = (allowedRoles: string[]) => {
+export function requireRole(allowedRoles: string[]) {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
+    // Basic fallback check if user payload isn't bound yet
     if (!req.user) {
       return res.status(401).json({
         success: false,
         error: {
           code: 'UNAUTHORIZED',
-          message: 'User not authenticated',
+          message: 'Authentication required to check permissions',
         },
       });
     }
 
-    if (!allowedRoles.includes(req.user.role)) {
+    // Parse role metadata out of Supabase App Metadata claims fields
+    const userRole = req.user.app_metadata?.role || req.user.user_metadata?.role || 'student';
+
+    if (!allowedRoles.includes(userRole)) {
       return res.status(403).json({
         success: false,
         error: {
           code: 'FORBIDDEN',
-          message: `This action requires one of the following roles: ${allowedRoles.join(', ')}`,
+          message: 'You do not have permission to execute this administrative action',
         },
       });
     }
 
-    next();
+    return next();
   };
-};
-
-/**
- * Middleware: Error handler
- */
-export const errorHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
-  logger.error(err, 'Error handler caught exception');
-
-  const statusCode = err.statusCode || 500;
-  const code = err.code || 'INTERNAL_ERROR';
-  const message = err.message || 'An unexpected error occurred';
-
-  res.status(statusCode).json({
-    success: false,
-    error: {
-      code,
-      message,
-      details: process.env.NODE_ENV === 'development' ? err.stack : undefined,
-    },
-  });
-};
+}
