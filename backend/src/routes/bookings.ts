@@ -8,6 +8,7 @@ import {
   logAuditEvent,
 } from '../db';
 import { verifyToken, requireRole, AuthRequest } from '../middleware';
+import { supabase } from '../index';
 
 const router = Router();
 
@@ -68,27 +69,29 @@ router.post('/', async (req: Request, res: Response) => {
 
 /**
  * POST /api/bookings/lookup
- * Look up a booking by confirmation number and email (public endpoint - no auth required)
+ * Look up a booking by student number (public endpoint - no auth required)
  */
 router.post('/lookup', async (req: Request, res: Response) => {
   try {
-    const { confirmation_number, student_email } = req.body;
+    const { student_id_external } = req.body;
 
-    if (!confirmation_number || !student_email) {
+    if (!student_id_external) {
       return res.status(400).json({
         success: false,
         error: {
           code: 'VALIDATION_ERROR',
-          message: 'Missing confirmation_number or student_email',
+          message: 'Please provide your student number to look up a booking',
         },
       });
     }
 
-    const { data: booking, error } = await (require('../index').supabase)
+    // Prefer the most recent booking for this student number
+    const { data: booking, error } = await supabase
       .from('bookings')
-      .select('id, batch_id, confirmation_number, student_name, student_email, status, booked_at, slot:slots(id, start_time, end_time)')
-      .ilike('confirmation_number', confirmation_number.toUpperCase())
-      .ilike('student_email', student_email.toLowerCase())
+      .select('id, batch_id, confirmation_number, student_name, student_email, student_id_external, status, booked_at, slot:slots(id, start_time, end_time)')
+      .ilike('student_id_external', student_id_external.trim())
+      .order('created_at', { ascending: false })
+      .limit(1)
       .single();
 
     if (error || !booking) {
@@ -104,6 +107,79 @@ router.post('/lookup', async (req: Request, res: Response) => {
     return res.json({
       success: true,
       data: booking,
+    });
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return res.status(error.statusCode).json({
+        success: false,
+        error: {
+          code: error.code,
+          message: error.message,
+        },
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An unexpected error occurred',
+      },
+    });
+  }
+});
+
+/**
+ * POST /api/bookings/cancel
+ * Public student self-service cancellation by student number.
+ */
+router.post('/cancel', async (req: Request, res: Response) => {
+  try {
+    const { bookingId, student_id_external } = req.body;
+
+    if (!bookingId || !student_id_external) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'bookingId and student number are required to cancel a booking',
+        },
+      });
+    }
+
+    const { data: booking, error } = await supabase
+      .from('bookings')
+      .select('id, confirmation_number, student_email, student_id_external, status')
+      .eq('id', bookingId)
+      .single();
+
+    if (error || !booking) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'BOOKING_NOT_FOUND',
+          message: 'Booking not found',
+        },
+      });
+    }
+
+    const studentNumberMatches = (booking.student_id_external || '').toLowerCase() === student_id_external.trim().toLowerCase();
+
+    if (!studentNumberMatches) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'The booking details did not match',
+        },
+      });
+    }
+
+    const cancelled = await cancelBooking(bookingId);
+
+    return res.json({
+      success: true,
+      data: cancelled,
     });
   } catch (error) {
     if (error instanceof ApiError) {

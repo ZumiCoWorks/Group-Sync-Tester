@@ -87,8 +87,14 @@ router.get('/:batchId', async (req: Request, res: Response) => {
       });
     }
 
-    // Check if batch is published or still in draft
-    if (batch.status !== 'published' && batch.status !== 'pending_venue_approval') {
+    // Allow published, pending approval, or closed/archived batches to be returned.
+    // Frontend can show appropriate messaging for closed/archived batches.
+    if (
+      batch.status !== 'published' &&
+      batch.status !== 'pending_venue_approval' &&
+      batch.status !== 'closed' &&
+      batch.status !== 'archived'
+    ) {
       return res.status(404).json({
         success: false,
         error: {
@@ -174,9 +180,9 @@ router.get('/:batchId/slots', async (req: Request, res: Response) => {
   try {
     const { batchId } = req.params;
 
-    // Verify batch exists and is published
+    // Verify batch exists and is available for public roster viewing.
     const batch = await getBatchById(batchId);
-    if (!batch || batch.status !== 'published') {
+    if (!batch || (batch.status !== 'published' && batch.status !== 'closed' && batch.status !== 'archived')) {
       return res.status(404).json({
         success: false,
         error: {
@@ -233,7 +239,8 @@ router.get('/:batchId/roster', async (req: Request, res: Response) => {
 
     const batch = await getBatchById(batchId);
 
-    if (!batch || batch.status !== 'published' || !batch.public_view_token || batch.public_view_token !== token) {
+    // Allow roster access using the public token even when a batch has been closed
+    if (!batch || (batch.status !== 'published' && batch.status !== 'closed') || !batch.public_view_token || batch.public_view_token !== token) {
       return res.status(404).json({
         success: false,
         error: {
@@ -243,7 +250,7 @@ router.get('/:batchId/roster', async (req: Request, res: Response) => {
       });
     }
 
-    const bookings = await listBookingsByBatch(batchId);
+    const bookings = (await listBookingsByBatch(batchId)).filter((booking) => booking.status !== 'cancelled');
     const slots = await getSlotsByBatchId(batchId);
 
     return res.json({
@@ -441,6 +448,8 @@ router.put('/:batchId', verifyToken, requireRole(['staff', 'lecturer', 'admin'])
       slotDurationMinutes,
       perSlotCapacity,
       batchCapacity,
+      lunchBreakStart,
+      lunchBreakEnd,
     } = req.body;
 
     const batch = await updateBatch(batchId, {
@@ -452,6 +461,8 @@ router.put('/:batchId', verifyToken, requireRole(['staff', 'lecturer', 'admin'])
       slot_duration_minutes: slotDurationMinutes !== undefined ? Number(slotDurationMinutes) : undefined,
       per_slot_capacity: perSlotCapacity !== undefined ? Number(perSlotCapacity) : undefined,
       batch_capacity: batchCapacity !== undefined && batchCapacity !== null ? Number(batchCapacity) : undefined,
+      lunch_break_start: typeof lunchBreakStart === 'string' && lunchBreakStart.trim() ? lunchBreakStart.trim() : undefined,
+      lunch_break_end: typeof lunchBreakEnd === 'string' && lunchBreakEnd.trim() ? lunchBreakEnd.trim() : undefined,
     });
 
     return res.json({

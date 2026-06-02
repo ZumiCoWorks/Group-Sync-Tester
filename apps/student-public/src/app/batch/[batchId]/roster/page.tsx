@@ -51,7 +51,7 @@ type SlotType = {
   booking_count: number;
 };
 
-const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || (process.env.NODE_ENV === 'production' ? 'https://afda-core-backend-bmi3qmvu5-zcw-nav-eaze.vercel.app' : 'http://localhost:3001');
+const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || (process.env.NODE_ENV === 'production' ? 'https://afda-core-backend.vercel.app' : 'http://localhost:3001');
 
 const formatDay = (value: string) =>
   new Date(value).toLocaleDateString([], {
@@ -143,22 +143,22 @@ export default function LecturerRosterPage() {
           <button
             type="button"
             onClick={() => router.push(`/batch/${batchId}`)}
-            className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/10"
+            className="rounded-2xl border border-muted bg-white px-4 py-2 text-sm font-medium text-heading shadow-sm transition hover:bg-secondary"
           >
             Back to booking page
           </button>
-          <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium uppercase tracking-[0.2em] text-slate-300">
+          <span className="rounded-full border border-muted bg-white px-4 py-2 text-xs font-medium uppercase tracking-[0.2em] text-body shadow-sm">
             Public roster
           </span>
         </div>
 
-        <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6 shadow-2xl shadow-cyan-950/30 backdrop-blur-xl sm:p-8">
+        <section className="rounded-3xl border border-muted bg-white p-6 shadow-xl backdrop-blur-xl sm:p-8">
           <div className="space-y-3">
-            <div className="inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">
+            <div className="inline-flex rounded-full border border-accent-business/20 bg-accent-business/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-accent-business">
               Lecturer view
             </div>
-            <h1 className="text-4xl font-semibold tracking-tight text-white">{batchTitle || 'Batch roster'}</h1>
-            <p className="text-sm text-slate-300">
+            <h1 className="text-4xl font-semibold tracking-tight text-heading">{batchTitle || 'Batch roster'}</h1>
+            <p className="text-sm text-body">
               This link is public, but only works with the roster token shared by the batch creator.
             </p>
           </div>
@@ -169,23 +169,23 @@ export default function LecturerRosterPage() {
               { label: 'Confirmed', value: stats.confirmed },
               { label: 'Attended', value: stats.attended },
             ].map((item) => (
-              <div key={item.label} className="rounded-2xl border border-white/10 bg-white/5 p-5">
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">{item.label}</p>
-                <p className="mt-3 text-3xl font-semibold text-white">{item.value}</p>
+              <div key={item.label} className="rounded-2xl border border-muted bg-secondary p-5 shadow-sm">
+                <p className="text-xs uppercase tracking-[0.2em] text-body">{item.label}</p>
+                <p className="mt-3 text-3xl font-semibold text-heading">{item.value}</p>
               </div>
             ))}
           </div>
         </section>
 
-        <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
+        <section className="rounded-3xl border border-muted bg-white p-6 shadow-xl backdrop-blur-xl sm:p-8">
           {loading ? (
-            <div className="text-sm text-slate-300">Loading roster…</div>
+            <div className="text-sm text-body">Loading roster…</div>
           ) : error ? (
-            <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-5 text-sm text-rose-200">
+            <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-5 text-sm text-rose-700">
               {error}
             </div>
           ) : slots.length === 0 ? (
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-slate-300">
+            <div className="rounded-2xl border border-muted bg-secondary p-8 text-center text-body">
               No slots are available for this batch yet.
             </div>
           ) : (
@@ -206,32 +206,32 @@ export default function LecturerRosterPage() {
                             <div key={slot.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
                               <div className="mb-3 flex items-start justify-between">
                                 <div>
-                                  <p className="font-semibold text-white">
+                                  <p className="font-semibold text-heading">
                                     {formatTimeRange(slot.start_time, slot.end_time)}
                                   </p>
-                                  <p className="text-xs text-slate-400">
+                                  <p className="text-xs text-body">
                                     {slot.booking_count} / {slot.capacity} booked
                                   </p>
                                 </div>
                                 <div
                                   className={`rounded-full px-2 py-1 text-xs font-semibold ${
                                     isFull
-                                      ? 'bg-emerald-400/10 text-emerald-200'
-                                      : 'bg-amber-400/10 text-amber-200'
+                                      ? 'bg-emerald-500/10 text-emerald-700'
+                                      : 'bg-amber-500/10 text-amber-700'
                                   }`}
                                 >
                                   {isFull ? 'Full' : 'Open'}
                                 </div>
                               </div>
 
-                              <div className="space-y-2 rounded-xl border border-white/10 bg-slate-950/60 p-3">
+                              <div className="space-y-2 rounded-xl border border-muted bg-white p-3 shadow-sm">
                                 {slotBookings.length === 0 ? (
-                                  <p className="text-xs text-slate-300">No bookings yet</p>
+                                  <p className="text-xs text-body">No bookings yet</p>
                                 ) : (
                                   slotBookings.map((b) => (
                                     <div key={b.id} className="text-xs">
-                                      <p className="font-medium text-slate-100">{b.student_name}</p>
-                                      <p className="text-slate-400">{b.student_email}</p>
+                                      <p className="font-medium text-heading">{b.student_name}</p>
+                                      <p className="text-body">{b.student_email}</p>
                                     </div>
                                   ))
                                 )}
