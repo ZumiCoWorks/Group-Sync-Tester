@@ -53,7 +53,9 @@ const allowedOrigins = new Set([
   'http://localhost:3000',
   'http://localhost:3001',
   'http://localhost:3002',
+  'https://student-public.vercel.app',
   'https://student-public-zcw-nav-eaze.vercel.app',
+  'https://student-public-5mz52dpkk-zcw-nav-eaze.vercel.app',
   'https://slot-booking-red.vercel.app',
   ...(process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',').map((s) => s.trim()) : []),
 ].filter(Boolean));

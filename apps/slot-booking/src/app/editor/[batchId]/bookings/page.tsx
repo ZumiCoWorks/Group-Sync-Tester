@@ -39,7 +39,7 @@ type BookingsResponse = {
   error?: { code: string; message: string };
 };
 
-const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://afda-core-backend-bmi3qmvu5-zcw-nav-eaze.vercel.app';
+const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://afda-api.vercel.app';
 
 export default function BatchBookingsPage() {
   const router = useRouter();
@@ -182,7 +182,7 @@ export default function BatchBookingsPage() {
           <button
             type="button"
             onClick={() => window.open(`${process.env.NEXT_PUBLIC_BATCH_LINK_BASE || 'https://student-public-zcw-nav-eaze.vercel.app'}/batch/${batchId}`, '_blank', 'noopener,noreferrer')}
-            className="rounded-2xl bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
+            className="rounded-2xl bg-accent-business px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
           >
             Open student link
           </button>
@@ -190,7 +190,7 @@ export default function BatchBookingsPage() {
 
         <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6 shadow-2xl shadow-cyan-950/30 backdrop-blur-xl sm:p-8">
           <div className="space-y-3">
-            <div className="inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">
+            <div className="inline-flex rounded-full border border-accent-creative/20 bg-accent-creative/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-accent-creative">
               Lecturer roster
             </div>
             <h1 className="text-4xl font-semibold tracking-tight text-white">
@@ -242,7 +242,7 @@ export default function BatchBookingsPage() {
                         <p className="font-medium text-white">{booking.student_name}</p>
                         <p className="text-xs text-slate-400">{booking.student_email}</p>
                       </div>
-                      <span className="rounded-full bg-cyan-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">
+                      <span className="rounded-full bg-accent-creative/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-accent-creative">
                         {booking.status}
                       </span>
                     </div>
@@ -299,7 +299,7 @@ export default function BatchBookingsPage() {
                             : 'Slot unavailable'}
                         </td>
                         <td className="px-4 py-4">
-                          <span className="rounded-full bg-cyan-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">
+                          <span className="rounded-full bg-accent-creative/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-accent-creative">
                             {booking.status}
                           </span>
                         </td>

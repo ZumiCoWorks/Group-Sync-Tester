@@ -96,6 +96,43 @@ export async function getBatchById(batchId: string) {
     throw new ApiError(500, 'DB_ERROR', 'Failed to fetch batch');
   }
 
+  // Auto-close published batches that are past their end date.
+  try {
+    if (data && data.status === 'published' && data.date_range_end) {
+      const now = new Date();
+      const end = new Date(data.date_range_end);
+      if (!isNaN(end.getTime()) && now > end) {
+        // Close the batch so no new bookings can be created.
+        // Use closeBatch which logs an audit event; ignore errors so fetch still returns something.
+        try {
+          await closeBatch(batchId);
+          // re-fetch updated batch status
+          const { data: refreshed, error: refreshError } = await supabase
+            .from('batches')
+            .select(
+              `
+      *,
+      created_by_user:users(id, email, first_name, last_name, role),
+      venue:venues(*),
+      slots:slots(*)
+    `
+            )
+            .eq('id', batchId)
+            .single();
+
+          if (!refreshError && refreshed) {
+            return refreshed;
+          }
+        } catch (err) {
+          // swallow: we'll return the original data if closing failed
+          logger.error(err, 'Error auto-closing batch');
+        }
+      }
+    }
+  } catch (err) {
+    logger.error(err, 'Error checking batch auto-close');
+  }
+
   return data;
 }
 
@@ -213,6 +250,7 @@ export async function listBatches(status?: string) {
       description,
       status,
       booking_count,
+      batch_capacity,
       total_slots,
       slot_duration_minutes,
       per_slot_capacity,

@@ -11,13 +11,21 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <meta name="description" content="AFDA Booking Platform - Staff Dashboard" />
         <title>AFDA Booking - Staff Dashboard</title>
       </head>
-      <body className="bg-gray-50">
-        <header className="bg-white shadow">
-          <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
-            <h1 className="text-2xl font-bold text-gray-900">AFDA Slot Booking</h1>
-          </div>
-        </header>
-        <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">{children}</main>
+      <body className="bg-primary text-heading antialiased">
+        <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(225,29,72,0.08),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(37,99,235,0.05),_transparent_30%)]">
+          <header className="border-b border-muted bg-white/90 backdrop-blur-xl">
+            <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-accent-creative">AFDA</p>
+                <h1 className="text-2xl font-bold text-heading">Slot Booking</h1>
+              </div>
+              <div className="rounded-full border border-muted bg-secondary px-4 py-2 text-xs font-medium uppercase tracking-[0.2em] text-body">
+                Staff dashboard
+              </div>
+            </div>
+          </header>
+          <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">{children}</main>
+        </div>
       </body>
     </html>
   );

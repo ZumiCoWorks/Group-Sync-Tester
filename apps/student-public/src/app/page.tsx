@@ -8,7 +8,7 @@ export default function Home() {
   const [batchId, setBatchId] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || (process.env.NODE_ENV === 'production' ? 'https://afda-core-backend-bmi3qmvu5-zcw-nav-eaze.vercel.app' : 'http://localhost:3001');
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || (process.env.NODE_ENV === 'production' ? 'https://afda-core-backend.vercel.app' : 'http://localhost:3001');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,57 +40,86 @@ export default function Home() {
     }
   };
 
-  const normalizedBatchId = batchId.trim().toUpperCase();
-
   return (
-    <div className="relative min-h-screen overflow-hidden px-4 py-8 sm:px-6 lg:px-8">
-      <div className="pointer-events-none absolute inset-0 opacity-70">
-        <div className="absolute left-1/4 top-0 h-72 w-72 rounded-full bg-cyan-400/20 blur-3xl" />
-        <div className="absolute right-0 top-24 h-80 w-80 rounded-full bg-amber-300/10 blur-3xl" />
+    <div className="relative overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 opacity-80">
+        <div className="absolute left-1/4 top-0 h-72 w-72 rounded-full bg-[rgba(225,29,72,0.10)] blur-3xl" />
+        <div className="absolute right-0 top-24 h-80 w-80 rounded-full bg-[rgba(37,99,235,0.08)] blur-3xl" />
       </div>
 
       <div className="relative mx-auto flex min-h-[calc(100vh-4rem)] max-w-6xl items-center">
-        <div className="grid w-full gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
+        <div className="grid w-full gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
           <section className="space-y-8">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 backdrop-blur">
-              <span className="h-2 w-2 rounded-full bg-cyan-400" />
+            <div className="inline-flex items-center gap-2 rounded-full border border-muted bg-white/90 px-4 py-2 text-sm text-body shadow-sm backdrop-blur">
+              <span className="h-2 w-2 rounded-full bg-accent-creative" />
               Student booking portal
             </div>
 
             <div className="space-y-5">
-              <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-white sm:text-6xl">
-                Find your batch, pick a slot, and secure it in one pass.
+              <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-heading sm:text-6xl">
+                Book a slot or manage an existing booking in one place.
               </h1>
-              <p className="max-w-xl text-lg leading-8 text-slate-300">
-                Enter the batch code from your lecturer or follow the direct link. The portal will
-                show the available dates and let you claim a slot without extra steps.
+              <p className="max-w-xl text-lg leading-8 text-body">
+                If you are booking for the first time, enter your batch code. If you already booked,
+                go straight to your booking details to cancel or update your plans.
               </p>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2">
               {[
-                'Batch lookup by code',
-                'Live slot availability',
-                'Fast confirmation flow',
+                {
+                  title: 'New booking',
+                  text: 'Use the batch code from your lecturer to pick an available slot.',
+                },
+                {
+                  title: 'Manage booking',
+                  text: 'Use your confirmation number, email, or student number to find a booking.',
+                },
               ].map((item) => (
-                <div key={item} className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
-                  <p className="text-sm font-medium text-slate-200">{item}</p>
+                <div key={item.title} className="rounded-2xl border border-muted bg-white p-4 shadow-sm backdrop-blur">
+                  <p className="text-sm font-semibold text-heading">{item.title}</p>
+                  <p className="mt-1 text-sm leading-6 text-body">{item.text}</p>
                 </div>
               ))}
             </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => router.push('/my-booking')}
+                className="inline-flex items-center justify-center rounded-2xl border border-muted bg-white px-5 py-3 text-sm font-semibold text-heading shadow-sm transition hover:bg-secondary"
+              >
+                Manage existing booking
+              </button>
+              <a
+                href="#batch-code"
+                className="inline-flex items-center justify-center rounded-2xl bg-accent-creative px-5 py-3 text-sm font-semibold text-white transition hover:opacity-95"
+              >
+                Book a slot
+              </a>
+            </div>
           </section>
 
-          <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6 shadow-2xl shadow-cyan-950/30 backdrop-blur-xl sm:p-8">
-            <div className="mb-8 space-y-2">
-              <h2 className="text-2xl font-semibold text-white">Enter batch code</h2>
-              <p className="text-sm leading-6 text-slate-300">
-                Example: <span className="font-medium text-cyan-300">ABC123</span>
+          <section className="space-y-4 rounded-3xl border border-muted bg-white p-6 shadow-xl backdrop-blur-xl sm:p-8">
+            <div className="rounded-2xl border border-muted bg-secondary p-4 text-sm leading-6 text-body">
+              <p className="font-medium text-heading">What happens next</p>
+              <ol className="mt-2 list-decimal space-y-1 pl-5">
+                <li>Enter your batch code to find the correct event.</li>
+                <li>Pick an open slot and submit your details.</li>
+                <li>If you already booked, use the manage-booking page instead.</li>
+              </ol>
+            </div>
+
+            <div id="batch-code" className="mb-8 space-y-2 pt-2">
+              <h2 className="text-2xl font-semibold text-heading">Enter batch code</h2>
+              <p className="text-sm leading-6 text-body">
+                Example: <span className="font-medium text-accent-business">ABC123</span>
               </p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <label htmlFor="batchId" className="mb-2 block text-sm font-medium text-slate-200">
+                <label htmlFor="batchId" className="mb-2 block text-sm font-medium text-heading">
                   Batch Code
                 </label>
                 <input
@@ -107,22 +136,22 @@ export default function Home() {
                   required
                   aria-invalid={Boolean(error)}
                   aria-describedby="batch-help batch-error"
-                  className="block w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-lg text-white placeholder:text-slate-500 shadow-sm outline-none transition focus:border-cyan-400/60 focus:ring-4 focus:ring-cyan-400/10"
+                  className="block w-full rounded-2xl border border-muted bg-white px-4 py-3 text-lg text-heading placeholder:text-slate-400 shadow-sm outline-none transition focus:border-accent-creative/60 focus:ring-4 focus:ring-accent-creative/10"
                   disabled={loading}
                 />
-                <p id="batch-help" className="mt-2 text-xs leading-5 text-slate-400">
+                <p id="batch-help" className="mt-2 text-xs leading-5 text-body">
                   Batch codes are usually short uppercase strings. Copy the code exactly as provided.
                 </p>
               </div>
 
               {error && (
-                <div id="batch-error" role="alert" className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">
+                <div id="batch-error" role="alert" className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-700">
                   <div className="flex items-start justify-between gap-3">
                     <p>{error}</p>
                     <button
                       type="button"
                       onClick={() => setError('')}
-                      className="shrink-0 rounded-full border border-rose-300/20 bg-white/10 px-3 py-1 text-xs font-semibold text-rose-50 transition hover:bg-white/15"
+                      className="shrink-0 rounded-full border border-rose-300/20 bg-white px-3 py-1 text-xs font-semibold text-rose-700 transition hover:bg-rose-50"
                     >
                       Dismiss
                     </button>
@@ -133,15 +162,27 @@ export default function Home() {
               <button
                 type="submit"
                 disabled={loading}
-                className="inline-flex w-full items-center justify-center rounded-2xl bg-cyan-400 px-4 py-3.5 text-center text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-slate-500"
+                className="inline-flex w-full items-center justify-center rounded-2xl bg-accent-creative px-4 py-3.5 text-center text-sm font-semibold text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:bg-slate-400"
               >
                 {loading ? 'Finding your batch...' : 'Find My Batch'}
               </button>
             </form>
 
-            <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-slate-300">
-              Already have a direct link? Open it and the portal will take you straight to the
-              booking page.
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => router.push('/my-booking')}
+                className="rounded-2xl border border-muted bg-white px-4 py-3 text-sm font-semibold text-heading shadow-sm transition hover:bg-secondary"
+              >
+                I already booked
+              </button>
+              <button
+                type="button"
+                onClick={() => setError('')}
+                className="rounded-2xl border border-muted bg-white px-4 py-3 text-sm font-semibold text-body shadow-sm transition hover:bg-secondary"
+              >
+                Clear batch code
+              </button>
             </div>
           </section>
         </div>
