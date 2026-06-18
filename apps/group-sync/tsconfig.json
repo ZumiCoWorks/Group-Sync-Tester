@@ -24,6 +24,12 @@
       ],
       "@shared/*": [
         "../../shared/*"
+      ],
+      "@afda/shared": [
+        "../../shared"
+      ],
+      "@afda/shared/*": [
+        "../../shared/*"
       ]
     },
     "plugins": [
