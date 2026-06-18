@@ -3,7 +3,12 @@ import { createClient } from '@supabase/supabase-js';
 
 // Define the custom request interface your sub-routers require
 export interface AuthRequest extends Request {
-  user?: any;
+  user?: {
+    id: string;
+    email?: string | null;
+    app_metadata?: Record<string, unknown>;
+    user_metadata?: Record<string, unknown>;
+  };
 }
 
 // Support alternative named interfaces if used by other files
@@ -16,6 +21,12 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const authCryptoClient = createClient(supabaseUrl, supabaseServiceKey, {
   auth: { persistSession: false }
 });
+
+function extractRole(user: NonNullable<AuthRequest['user']>) {
+  const appRole = typeof user.app_metadata?.role === 'string' ? user.app_metadata.role : undefined;
+  const userRole = typeof user.user_metadata?.role === 'string' ? user.user_metadata.role : undefined;
+  return appRole || userRole || 'student';
+}
 
 /**
  * Token Verification Middleware
@@ -59,8 +70,12 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
       });
     }
 
-    // Bind structural user values onto request lifecycle
-    req.user = user;
+    req.user = {
+      id: user.id,
+      email: user.email,
+      app_metadata: user.app_metadata,
+      user_metadata: user.user_metadata,
+    };
     return next();
   } catch (error) {
     return res.status(500).json({
@@ -93,7 +108,7 @@ export function requireRole(allowedRoles: string[]) {
     }
 
     // Parse role metadata out of Supabase App Metadata claims fields
-    const userRole = req.user.app_metadata?.role || req.user.user_metadata?.role || 'student';
+    const userRole = extractRole(req.user);
 
     if (!allowedRoles.includes(userRole)) {
       return res.status(403).json({

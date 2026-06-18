@@ -149,6 +149,8 @@ import bookingsRouter from './routes/bookings';
 import exportsRouter from './routes/exports';
 import importsRouter from './routes/imports';
 import auditLogsRouter from './routes/audit-logs';
+import venuesRouter from './routes/venues';
+import groupSyncRouter from './routes/group-sync';
 
 // Mount routers
 app.use('/api/auth', authRouter);
@@ -157,11 +159,10 @@ app.use('/api/bookings', bookingsRouter);
 app.use('/api/exports', exportsRouter);
 app.use('/api/imports', importsRouter);
 app.use('/api/audit-logs', auditLogsRouter);
+app.use('/api/venues', venuesRouter);
+app.use('/api/group-sync', groupSyncRouter);
 
 // Fallback placeholders for other APIs until implemented
-app.use('/api/venues', (req: Request, res: Response) => {
-  res.status(501).json({ error: 'Venue routes not yet implemented' });
-});
 app.use('/api/audit', (req: Request, res: Response) => {
   res.status(501).json({ error: 'Audit routes not yet implemented' });
 });
