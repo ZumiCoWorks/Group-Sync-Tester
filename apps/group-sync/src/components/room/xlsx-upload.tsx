@@ -94,7 +94,7 @@ export function XLSXUpload({ isOpen, onClose, onUploadFile, onPopulateLobby }: X
                 <div className="space-y-6 flex-grow overflow-hidden flex flex-col min-h-0">
                     {isUploading ? (
                         <div className="flex-grow flex flex-col items-center justify-center py-12 space-y-3">
-                            <Loader2 className="w-10 h-10 animate-spin text-emerald-500" />
+                            <Loader2 className="w-10 h-10 animate-spin text-rose-500" />
                             <p className="text-sm font-bold text-foreground">Uploading and parsing sheets...</p>
                         </div>
                     ) : students.length === 0 ? (
@@ -103,9 +103,9 @@ export function XLSXUpload({ isOpen, onClose, onUploadFile, onPopulateLobby }: X
                         </div>
                     ) : (
                         <div className="space-y-4 flex flex-col flex-grow min-h-0">
-                            <div className="flex items-center justify-between p-4 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+                            <div className="flex items-center justify-between p-4 bg-rose-500/10 rounded-xl border border-rose-500/20">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-emerald-500 text-white rounded-full flex items-center justify-center font-bold">
+                                    <div className="w-10 h-10 bg-rose-500 text-white rounded-full flex items-center justify-center font-bold">
                                         ✓
                                     </div>
                                     <div>
@@ -146,7 +146,7 @@ export function XLSXUpload({ isOpen, onClose, onUploadFile, onPopulateLobby }: X
                                                             </span>
                                                         )}
                                                         {student.discipline && (
-                                                            <span className="text-[10px] bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded-full">
+                                                            <span className="text-[10px] bg-rose-500/10 text-rose-600 px-2 py-0.5 rounded-full">
                                                                 {student.discipline}
                                                             </span>
                                                         )}
@@ -168,7 +168,7 @@ export function XLSXUpload({ isOpen, onClose, onUploadFile, onPopulateLobby }: X
                                 <Button
                                     onClick={handlePopulate}
                                     disabled={isPopulating}
-                                    className="flex-grow py-5 bg-emerald-500 text-white font-bold hover:bg-emerald-600 rounded-xl"
+                                    className="flex-grow py-5 bg-rose-500 text-white font-semibold hover:bg-rose-600 rounded-xl"
                                 >
                                     {isPopulating ? (
                                         <>

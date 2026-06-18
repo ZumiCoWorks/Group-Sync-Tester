@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '../ui/label';
 
@@ -39,68 +38,67 @@ export function StudentJoinForm({ sessionId, onJoin }: StudentJoinFormProps) {
   };
 
   return (
-    <main className="w-full max-w-md mx-auto p-8 animate-in slide-in-from-bottom-8">
-      <Card className="rounded-3xl shadow-2xl border-none">
-        <CardHeader>
-          <CardTitle className="text-3xl font-black font-headline text-foreground">Student Profile</CardTitle>
-          <CardDescription className="!mt-2">
-            Room: <span className="text-primary font-mono font-bold">{sessionId}</span>
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2 mb-6">
-            <Label>Choose your Avatar</Label>
-            <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
-              {AVATARS.map(a => (
-                <button
-                  key={a}
-                  onClick={() => setMyAvatar(a)}
-                  className={`text-3xl p-3 rounded-2xl transition-all ${myAvatar === a ? 'bg-primary/20 border-2 border-primary' : 'bg-secondary border-2 border-transparent hover:bg-muted'}`}
-                  aria-label={`Select avatar ${a}`}
-                >
-                  {a}
-                </button>
-              ))}
-            </div>
-          </div>
+    <main className="w-full max-w-md mx-auto p-4 animate-in slide-in-from-bottom-8">
+      <div className="rounded-3xl border border-muted bg-white p-6 shadow-xl backdrop-blur-xl sm:p-8">
+        <div className="mb-6">
+          <h2 className="text-3xl font-semibold text-heading">Student Profile</h2>
+          <p className="text-sm leading-6 text-body mt-2">
+            Room: <span className="text-accent-creative font-mono font-semibold">{sessionId}</span>
+          </p>
+        </div>
 
-          <form onSubmit={handleJoin} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
-              <Input
-                id="name"
-                type="text"
-                placeholder="Enter Full Name"
-                className="w-full p-4 h-auto bg-secondary border-border rounded-xl outline-none focus:ring-2 focus:ring-primary font-bold"
-                value={studentName}
-                onChange={(e) => setStudentName(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="discipline">Discipline (Optional)</Label>
-              <Select value={discipline} onValueChange={setDiscipline}>
-                <SelectTrigger id="discipline" className="w-full p-4 h-auto bg-secondary border-border rounded-xl outline-none focus:ring-2 focus:ring-primary font-bold">
-                  <SelectValue placeholder="Select your discipline..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {DISCIPLINES.map(d => (
-                    <SelectItem key={d} value={d}>{d}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Button
-              type="submit"
-              className="w-full py-6 bg-foreground text-background font-black rounded-xl hover:bg-foreground/90 transition-all text-lg"
-              disabled={isLoading}
-            >
-              {isLoading ? 'Joining...' : 'Join Class'}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+        <div className="space-y-3 mb-6">
+          <Label className="text-heading font-medium">Choose your Avatar</Label>
+          <div className="grid grid-cols-6 gap-2">
+            {AVATARS.map(a => (
+              <button
+                key={a}
+                onClick={() => setMyAvatar(a)}
+                className={`text-2xl p-2.5 rounded-xl transition-all ${myAvatar === a ? 'bg-accent-creative/20 border border-accent-creative' : 'bg-secondary border border-muted hover:bg-secondary/80'}`}
+                aria-label={`Select avatar ${a}`}
+              >
+                {a}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <form onSubmit={handleJoin} className="space-y-5">
+          <div className="space-y-2">
+            <Label htmlFor="name" className="text-heading font-medium">Full Name</Label>
+            <Input
+              id="name"
+              type="text"
+              placeholder="Enter Full Name"
+              className="w-full p-4 h-auto bg-secondary border border-muted rounded-xl outline-none focus-visible:ring-accent-creative font-semibold"
+              value={studentName}
+              onChange={(e) => setStudentName(e.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="discipline" className="text-heading font-medium">Discipline (Optional)</Label>
+            <Select value={discipline} onValueChange={setDiscipline}>
+              <SelectTrigger id="discipline" className="w-full p-4 h-auto bg-secondary border border-muted rounded-xl outline-none focus-visible:ring-accent-creative font-semibold">
+                <SelectValue placeholder="Select your discipline..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {DISCIPLINES.map(d => (
+                  <SelectItem key={d} value={d}>{d}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+            type="submit"
+            className="w-full py-4 bg-accent-creative text-white font-semibold rounded-2xl hover:bg-accent-creative/90 transition-all shadow-md shadow-accent-creative/10 text-lg disabled:opacity-50"
+            disabled={isLoading}
+          >
+            {isLoading ? 'Joining...' : 'Join Class'}
+          </Button>
+        </form>
+      </div>
     </main>
   );
 }

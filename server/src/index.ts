@@ -45,22 +45,34 @@ export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   },
 });
 
-/**
- * Middleware: CORS
- */
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  process.env.FRONTEND_URL,
+];
+
 app.use(
   cors({
-    origin: [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'http://localhost:3002',
-      process.env.FRONTEND_URL || 'http://localhost:3000',
-    ],
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      const isAllowed =
+        allowedOrigins.some((ao) => ao && ao === origin) ||
+        origin.endsWith('.vercel.app') ||
+        origin.startsWith('http://localhost:');
+      if (isAllowed) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
+
+app.options('*', cors());
 
 /**
  * Middleware: JSON parsing

@@ -21,33 +21,33 @@ export function StudentGroupedView({ sessionData, studentName }: StudentGroupedV
 
   if (!myGroup) {
     return (
-      <div className="min-h-screen bg-foreground text-background p-6 flex flex-col items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold">Waiting for groups...</h2>
-          <p>Your group information isn't available yet.</p>
+      <div className="flex-grow flex items-center justify-center p-4">
+        <div className="text-center rounded-3xl border border-muted bg-white p-8 shadow-xl">
+          <h2 className="text-2xl font-bold text-heading">Waiting for groups...</h2>
+          <p className="text-body mt-2">Your group information isn't available yet.</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-foreground text-background p-6 flex flex-col items-center justify-center">
-      <div className="w-full max-w-md space-y-8 text-center animate-in fade-in scale-95 duration-500">
-        <div className="inline-block p-4 bg-primary/10 rounded-full border border-primary/20 mb-4">
-          <Zap className="w-12 h-12 text-primary" />
+    <div className="flex-grow flex items-center justify-center p-4">
+      <div className="w-full max-w-md space-y-6 text-center animate-in fade-in scale-95 duration-500 rounded-3xl border border-muted bg-white p-6 shadow-xl backdrop-blur-xl sm:p-8">
+        <div className="inline-block p-4 bg-accent-creative/10 rounded-full border border-accent-creative/20 mb-2">
+          <Zap className="w-12 h-12 text-accent-creative" />
         </div>
-        <h2 className="text-5xl font-black tracking-tighter font-headline">Group {groupIdx + 1}</h2>
-        <div className="space-y-3 mt-10">
+        <h2 className="text-5xl font-black tracking-tighter font-headline text-heading">Group {groupIdx + 1}</h2>
+        <div className="space-y-3 mt-8">
           {myGroup.map((member, i) => (
             <div
               key={i}
               className={`p-4 rounded-2xl flex items-center gap-4 border text-left ${member.name === studentName
-                  ? 'bg-primary border-primary/80 text-primary-foreground shadow-xl shadow-primary/20'
-                  : 'bg-secondary/10 border-border/10 text-muted-foreground'
+                  ? 'bg-accent-creative border-accent-creative/80 text-white shadow-xl shadow-accent-creative/20'
+                  : 'bg-secondary border-muted text-body'
                 }`}
             >
               <span className="text-3xl">{member.avatar}</span>
-              <span className="font-bold text-lg">{member.name} {member.name === studentName && '(You)'}</span>
+              <span className="font-semibold text-lg">{member.name} {member.name === studentName && '(You)'}</span>
             </div>
           ))}
         </div>

@@ -47,16 +47,16 @@ export default function Home() {
     <div className="min-h-screen bg-background font-sans">
       <Navbar />
       <main className="max-w-4xl mx-auto px-4 pt-20 text-center">
-        <h1 className="text-6xl md:text-8xl font-black font-headline text-foreground tracking-tighter mb-6">
+        <h1 className="text-6xl md:text-8xl font-black font-headline text-heading tracking-tighter mb-6">
           Group students <br />
-          <span className="text-emerald-500">effortlessly.</span>
+          <span className="text-accent-creative">effortlessly.</span>
         </h1>
-        <p className="text-muted-foreground text-xl md:text-2xl font-medium max-w-2xl mx-auto mb-12">
+        <p className="text-body text-xl md:text-2xl font-medium max-w-2xl mx-auto mb-12">
           A high-performance live grouping tool designed for seminars, labs, and collaborative lectures.
         </p>
 
         {error && (
-          <div className="mb-6 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-600 text-sm max-w-md mx-auto">
+          <div className="mb-6 p-4 rounded-2xl bg-accent-creative/10 border border-accent-creative/30 text-accent-creative text-sm max-w-md mx-auto">
             {error}
           </div>
         )}
@@ -66,41 +66,41 @@ export default function Home() {
             onClick={createSession}
             disabled={isCreating}
             size="lg"
-            className="w-full sm:w-auto px-10 py-7 bg-foreground text-background rounded-full font-bold text-lg hover:bg-foreground/90 transition-all flex items-center justify-center gap-3 shadow-2xl"
+            className="w-full sm:w-auto px-10 py-7 bg-accent-creative text-white rounded-full font-bold text-lg hover:bg-accent-creative/90 transition-all flex items-center justify-center gap-3 shadow-2xl"
           >
-            <Crown className="w-5 h-5 text-emerald-400" /> {isCreating ? 'Creating...' : 'Host a Room'}
+            <Crown className="w-5 h-5 text-white" /> {isCreating ? 'Creating...' : 'Host a Room'}
           </Button>
           <Button
             asChild
             size="lg"
             variant="outline"
-            className="w-full sm:w-auto px-10 py-7 bg-transparent text-foreground border-2 border-foreground rounded-full font-bold text-lg hover:bg-foreground/5 transition-all"
+            className="w-full sm:w-auto px-10 py-7 bg-transparent text-heading border-2 border-heading rounded-full font-bold text-lg hover:bg-heading/5 transition-all"
           >
             <Link href="/join">Join as Student</Link>
           </Button>
         </div>
 
-        <div className="mt-24 grid grid-cols-1 md:grid-cols-3 gap-8 text-left border-t pt-12">
+        <div className="mt-24 grid grid-cols-1 md:grid-cols-3 gap-8 text-left border-t border-muted pt-12">
           <div>
-            <div className="w-10 h-10 bg-emerald-500/10 text-emerald-500 rounded-lg flex items-center justify-center mb-4">
+            <div className="w-10 h-10 bg-accent-creative/10 text-accent-creative rounded-lg flex items-center justify-center mb-4">
               <Zap className="w-5 h-5" />
             </div>
-            <h3 className="font-bold text-foreground font-headline">Real-time Sync</h3>
-            <p className="text-muted-foreground text-sm">Students join instantly via QR or short code. No refresh needed.</p>
+            <h3 className="font-bold text-heading font-headline text-lg">Real-time Sync</h3>
+            <p className="text-body text-sm mt-1">Students join instantly via QR or short code. No refresh needed.</p>
           </div>
           <div>
-            <div className="w-10 h-10 bg-teal-500/10 text-teal-500 rounded-lg flex items-center justify-center mb-4">
+            <div className="w-10 h-10 bg-accent-business/10 text-accent-business rounded-lg flex items-center justify-center mb-4">
               <Users className="w-5 h-5" />
             </div>
-            <h3 className="font-bold text-foreground font-headline">Varsity Ready</h3>
-            <p className="text-muted-foreground text-sm">Clean, professional UI suitable for higher education environments.</p>
+            <h3 className="font-bold text-heading font-headline text-lg">Varsity Ready</h3>
+            <p className="text-body text-sm mt-1">Clean, professional UI suitable for higher education environments.</p>
           </div>
           <div>
-            <div className="w-10 h-10 bg-purple-500/10 text-purple-500 rounded-lg flex items-center justify-center mb-4">
+            <div className="w-10 h-10 bg-indigo-500/10 text-indigo-600 rounded-lg flex items-center justify-center mb-4">
               <ShieldCheck className="w-5 h-5" />
             </div>
-            <h3 className="font-bold text-foreground font-headline">One-Click Export</h3>
-            <p className="text-muted-foreground text-sm">Copy group lists directly to clipboard for attendance or LMS.</p>
+            <h3 className="font-bold text-heading font-headline text-lg">One-Click Export</h3>
+            <p className="text-body text-sm mt-1">Copy group lists directly to clipboard for attendance or LMS.</p>
           </div>
         </div>
       </main>

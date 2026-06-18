@@ -7,7 +7,7 @@ const nextConfig = {
   },
   env: {
     NEXT_PUBLIC_BACKEND_URL:
-      process.env.NEXT_PUBLIC_BACKEND_URL || (process.env.NODE_ENV === 'production' ? 'https://afda-api.vercel.app' : 'http://localhost:3001'),
+      process.env.NEXT_PUBLIC_BACKEND_URL || (process.env.NODE_ENV === 'production' ? 'https://afda-core-backend.vercel.app' : 'http://localhost:3001'),
   },
 };
 

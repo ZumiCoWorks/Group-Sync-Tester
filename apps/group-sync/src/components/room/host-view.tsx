@@ -192,12 +192,12 @@ export function HostView({
       <main className="max-w-7xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-12 gap-8 pb-20 pt-6">
         <div className="lg:col-span-4 space-y-6">
           <div className="bg-card p-8 rounded-[2.5rem] shadow-xl border text-center relative overflow-hidden">
-            <div className="absolute top-6 right-6 px-3 py-1 bg-emerald-500/10 text-emerald-500 text-[10px] font-black rounded-full uppercase tracking-widest">Live Lobby</div>
+            <div className="absolute top-6 right-6 px-3 py-1 bg-rose-500/10 text-rose-600 text-[10px] font-black rounded-full uppercase tracking-widest">Live Lobby</div>
             <h2 className="text-lg font-black text-foreground uppercase tracking-widest mb-6 font-headline">Join Session</h2>
 
             <div className="bg-secondary p-4 rounded-3xl inline-block border-2 mb-6 group cursor-pointer relative" onClick={copyInvite}>
               <Image
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${inviteUrlForQr}&color=059669&bgcolor=f9fafb`}
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${inviteUrlForQr}&color=e11d48&bgcolor=f9fafb`}
                 alt="QR Code for joining session"
                 width={200}
                 height={200}
@@ -285,7 +285,7 @@ export function HostView({
                 max={Math.max(2, participants.length)}
                 value={groupCount}
                 onChange={(e) => setGroupCount(parseInt(e.target.value))}
-                className="w-full accent-emerald-500 h-2 bg-secondary rounded-full appearance-none cursor-pointer"
+                className="w-full accent-rose-500 h-2 bg-secondary rounded-full appearance-none cursor-pointer"
                 disabled={participants.length < 2}
               />
               {participants.length < 2 && (
@@ -316,7 +316,7 @@ export function HostView({
             <Button
               onClick={handleShuffle}
               disabled={participants.length < 2 || isAnimating}
-              className="w-full py-6 rounded-2xl font-black text-lg bg-emerald-500 text-white hover:bg-emerald-600 flex items-center justify-center gap-3 transition-all shadow-xl shadow-emerald-500/20 transform active:scale-95 disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none"
+              className="w-full py-6 rounded-2xl font-black text-lg bg-rose-500 text-white hover:bg-rose-600 flex items-center justify-center gap-3 transition-all shadow-xl shadow-rose-500/20 transform active:scale-95 disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none"
             >
               <RotateCcw className={isAnimating ? 'animate-spin' : ''} />
               {isAnimating ? 'MIXING...' : 'GENERATE GROUPS'}
@@ -371,10 +371,10 @@ export function HostView({
             {sessionData?.status === 'grouped' ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in duration-500">
                 {sessionData.groups.map((group, idx) => (
-                  <div key={idx} className="bg-secondary p-6 rounded-3xl border group hover:bg-card hover:shadow-xl hover:border-emerald-500/20 transition-all">
+                  <div key={idx} className="bg-secondary p-6 rounded-3xl border group hover:bg-card hover:shadow-xl hover:border-rose-500/20 transition-all">
                     <div className="flex justify-between items-center mb-6">
                       <h3 className="text-sm font-black text-foreground uppercase tracking-tighter font-headline">Group {idx + 1}</h3>
-                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-500/10 px-2 py-1 rounded-md">{group.members.length} Students</span>
+                      <span className="text-[10px] font-bold text-rose-600 bg-rose-500/10 px-2 py-1 rounded-md">{group.members.length} Students</span>
                     </div>
                     <div className="space-y-2">
                       {group.members.map((m, i) => (
@@ -385,7 +385,7 @@ export function HostView({
                           </div>
                           <div className="flex flex-wrap gap-2 mt-2">
                             {m.discipline && (
-                              <span className="text-[9px] bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded-full font-bold">
+                              <span className="text-[9px] bg-rose-500/10 text-rose-600 px-2 py-0.5 rounded-full font-bold">
                                 {m.discipline}
                               </span>
                             )}
@@ -422,7 +422,7 @@ export function HostView({
                         <span className="font-bold text-foreground text-sm">{p.name}</span>
                         <div className="flex flex-wrap gap-1 mt-1">
                           {p.discipline && (
-                            <span className="text-[9px] bg-emerald-500/10 text-emerald-600 px-1.5 py-0.2 rounded font-bold">
+                            <span className="text-[9px] bg-rose-500/10 text-rose-600 px-1.5 py-0.2 rounded font-bold">
                               {p.discipline}
                             </span>
                           )}
