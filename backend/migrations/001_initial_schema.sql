@@ -137,6 +137,7 @@ CREATE TABLE venue_booking_requests (
   venue_id UUID NOT NULL REFERENCES venues(id),
   requested_by_user_id UUID NOT NULL REFERENCES users(id),
   status VARCHAR(50) NOT NULL DEFAULT 'pending', -- 'pending', 'approved', 'declined'
+  request_notes TEXT,
   decline_reason TEXT,
   suggested_alternatives UUID[],
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

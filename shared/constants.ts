@@ -25,6 +25,12 @@ export const BATCH_STATUS = {
   CLOSED: 'closed',
 } as const;
 
+export const VENUE_REQUEST_STATUS = {
+  PENDING: 'pending',
+  APPROVED: 'approved',
+  DECLINED: 'declined',
+} as const;
+
 // Booking statuses
 export const BOOKING_STATUS = {
   CONFIRMED: 'confirmed',
