@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import { supabase } from '../index';
 import { parseRosterExcel } from '../services/xlsx-parser';

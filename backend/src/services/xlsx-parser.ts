@@ -22,8 +22,18 @@ const normalizeHeader = (val: any): string =>
   String(val ?? '').trim().toLowerCase().replace(/\s+/g, ' ').replace(/[^a-z0-9 ]/g, '');
 
 function findColumnIndex(headers: string[], candidates: string[]): number {
+  // First look for exact match
+  const exactIdx = headers.findIndex(header => candidates.includes(header));
+  if (exactIdx !== -1) return exactIdx;
+
+  // Fallback to partial match, ensuring candidate 'name' doesn't match 'surname'
   return headers.findIndex(header => 
-    candidates.some(candidate => header.includes(candidate) || candidate.includes(header))
+    candidates.some(candidate => {
+      if (candidate === 'name' && header.includes('surname')) {
+        return false;
+      }
+      return header.includes(candidate) || candidate.includes(header);
+    })
   );
 }
 
