@@ -2,7 +2,7 @@
 
 import { Zap } from 'lucide-react';
 import { useMemo } from 'react';
-import type { SyncSession } from '@afda/shared/types';
+import type { SyncSession } from '@/types/shared';
 
 type StudentGroupedViewProps = {
   sessionData: SyncSession | null;

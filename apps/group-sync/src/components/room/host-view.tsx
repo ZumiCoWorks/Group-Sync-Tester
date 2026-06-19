@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
 import { RotateCcw, Users, Link as LinkIcon, X, Download, Upload, Save, Power, FileText } from 'lucide-react';
-import type { SyncSession, SyncParticipant } from '@afda/shared/types';
+import type { SyncSession, SyncParticipant } from '@/types/shared';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';

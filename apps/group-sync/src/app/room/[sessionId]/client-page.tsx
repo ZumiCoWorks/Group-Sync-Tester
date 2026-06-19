@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/utils/supabase';
-import type { SyncSession, SyncParticipant } from '@afda/shared/types';
+import type { SyncSession, SyncParticipant } from '@/types/shared';
 import { HostView } from '@/components/room/host-view';
 import { StudentJoinForm } from '@/components/room/student-join-form';
 import { StudentLobbyView } from '@/components/room/student-lobby-view';
