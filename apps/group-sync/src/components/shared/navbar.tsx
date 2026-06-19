@@ -16,11 +16,6 @@ export function Navbar({ showSettingsButton = false, onSettingsClick }: NavbarPr
           <h1 className="text-2xl font-bold text-heading">Group Sync</h1>
         </Link>
         <div className="flex items-center gap-3">
-          <Link href="/history">
-            <Button variant="ghost" size="sm" className="text-xs font-medium uppercase tracking-[0.15em] text-body hover:text-heading">
-              History
-            </Button>
-          </Link>
           {showSettingsButton && (
             <Button
               variant="ghost"

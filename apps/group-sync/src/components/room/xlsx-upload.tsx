@@ -83,10 +83,10 @@ export function XLSXUpload({ isOpen, onClose, onUploadFile, onPopulateLobby }: X
                 <DialogHeader>
                     <DialogTitle className="text-2xl font-black text-foreground">Upload Class Roster</DialogTitle>
                     <DialogDescription className="text-muted-foreground !mt-2 font-medium">
-                        Upload an Excel (.xlsx, .xls) file containing:
+                        Upload an Excel (.xlsx, .xls) or CSV (.csv) file containing:
                         <ol className="list-decimal pl-5 mt-1 space-y-0.5 text-xs">
-                            <li><strong>Tab 1 (Class List):</strong> Columns: Name, Surname, Student Number, Discipline / Stream</li>
-                            <li><strong>Tab 2 (Current Placements):</strong> Columns: Student Number (or Name), Current Team</li>
+                            <li><strong>Class List:</strong> Columns: Surname, Name, Student Number, Discipline</li>
+                            <li><strong>Current Placements (optional, Tab 2 in Excel):</strong> Columns: Student Number, Current Team</li>
                         </ol>
                     </DialogDescription>
                 </DialogHeader>
@@ -99,7 +99,7 @@ export function XLSXUpload({ isOpen, onClose, onUploadFile, onPopulateLobby }: X
                         </div>
                     ) : students.length === 0 ? (
                         <div className="flex-grow flex items-center justify-center">
-                            <FileUpload onFileSelect={handleFileSelect} accept=".xlsx,.xls" maxSizeMB={10} />
+                            <FileUpload onFileSelect={handleFileSelect} accept=".xlsx,.xls,.csv" maxSizeMB={10} />
                         </div>
                     ) : (
                         <div className="space-y-4 flex flex-col flex-grow min-h-0">
