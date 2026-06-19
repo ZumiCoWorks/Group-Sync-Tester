@@ -216,7 +216,7 @@ router.post('/session/:code/join', async (req: Request, res: Response, next: Nex
 router.post('/session/:code/group', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { code } = req.params;
-    const { groupCount, useDisciplines, avoidSamePlacements } = req.body;
+    const { groupCount, useDisciplines, avoidSamePlacements, requiredDisciplines } = req.body;
     const normalizedCode = code.trim().toUpperCase();
 
     const targetGroupCount = Number(groupCount);
@@ -253,7 +253,8 @@ router.post('/session/:code/group', async (req: Request, res: Response, next: Ne
     const groups = generateGroups(participants as any[], {
       groupCount: targetGroupCount,
       useDisciplines: !!useDisciplines,
-      avoidSamePlacements: !!avoidSamePlacements
+      avoidSamePlacements: !!avoidSamePlacements,
+      requiredDisciplines: Array.isArray(requiredDisciplines) ? requiredDisciplines : []
     });
 
     // Save groups to session

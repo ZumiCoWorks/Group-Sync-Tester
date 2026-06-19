@@ -119,6 +119,47 @@ export default function ClientPage({ sessionId, isHost }: ClientPageProps) {
     };
   }, [sessionId, backendUrl]);
 
+  // If student is joined but their participant ID is missing from active list, they have been kicked
+  useEffect(() => {
+    if (!isHost && isJoined && myParticipantId && participants.length > 0) {
+      const stillParticipant = participants.some(p => p.id === myParticipantId);
+      if (!stillParticipant) {
+        setIsJoined(false);
+        setMyParticipantId(null);
+        setStudentName('');
+        localStorage.removeItem(`sync_participant_id:${sessionId}`);
+        toast({
+          variant: 'destructive',
+          title: 'Removed from Session',
+          description: 'The host has removed you from this grouping session.',
+        });
+      }
+    }
+  }, [participants, myParticipantId, isJoined, isHost, sessionId, toast]);
+
+  // Host action: Remove/Kick participant
+  const removeParticipant = async (participantId: string) => {
+    try {
+      const { error } = await supabase
+        .from('sync_participants')
+        .delete()
+        .eq('id', participantId);
+        
+      if (error) throw error;
+      
+      toast({
+        title: 'Participant Removed',
+        description: 'Successfully removed student from the session.',
+      });
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Failed to Remove',
+        description: err.message || 'Could not remove participant.',
+      });
+    }
+  };
+
   // Host URL overlay default
   useEffect(() => {
     if (isHost && !isSessionLoading) {
@@ -180,7 +221,8 @@ export default function ClientPage({ sessionId, isHost }: ClientPageProps) {
   const shuffleGroups = async (
     groupCount: number,
     avoidSamePlacements: boolean,
-    useDisciplines: boolean
+    useDisciplines: boolean,
+    requiredDisciplines?: string[]
   ) => {
     const response = await fetch(`${backendUrl}/api/group-sync/session/${sessionId}/group`, {
       method: 'POST',
@@ -190,7 +232,8 @@ export default function ClientPage({ sessionId, isHost }: ClientPageProps) {
       body: JSON.stringify({
         groupCount,
         avoidSamePlacements,
-        useDisciplines
+        useDisciplines,
+        requiredDisciplines
       })
     });
 
@@ -301,6 +344,7 @@ export default function ClientPage({ sessionId, isHost }: ClientPageProps) {
         endSession={endSession}
         uploadRosterFile={uploadRosterFile}
         populateLobbyFromRoster={populateLobbyFromRoster}
+        onRemoveParticipant={removeParticipant}
       />
     );
   }

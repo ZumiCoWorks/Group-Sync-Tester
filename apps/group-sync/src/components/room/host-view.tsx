@@ -24,11 +24,12 @@ type HostViewProps = {
   participants: SyncParticipant[];
   showUrlSettings: boolean;
   setShowUrlSettings: (show: boolean) => void;
-  shuffleGroups: (groupCount: number, avoidSamePlacements: boolean, useDisciplines: boolean) => Promise<void>;
+  shuffleGroups: (groupCount: number, avoidSamePlacements: boolean, useDisciplines: boolean, requiredDisciplines?: string[]) => Promise<void>;
   resetToLobby: () => Promise<void>;
   endSession: () => Promise<void>;
   uploadRosterFile: (file: File) => Promise<{ students: any[]; summary: any; studentsCount: number }>;
   populateLobbyFromRoster: () => Promise<void>;
+  onRemoveParticipant: (id: string) => Promise<void>;
 };
 
 export function HostView({
@@ -41,7 +42,8 @@ export function HostView({
   resetToLobby,
   endSession,
   uploadRosterFile,
-  populateLobbyFromRoster
+  populateLobbyFromRoster,
+  onRemoveParticipant
 }: HostViewProps) {
   const [groupCount, setGroupCount] = useState(3);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -55,6 +57,20 @@ export function HostView({
   const [showEndDialog, setShowEndDialog] = useState(false);
   const [sessionName, setSessionName] = useState(sessionData?.name || '');
   const [isEditingName, setIsEditingName] = useState(false);
+  const [requiredDisciplines, setRequiredDisciplines] = useState<string[]>([]);
+
+  // Unique disciplines in current lobby participants
+  const availableDisciplines = useMemo(() => {
+    const discs = participants
+      .map(p => p.discipline?.trim())
+      .filter((d): d is string => !!d);
+    return Array.from(new Set(discs));
+  }, [participants]);
+
+  // Clean up requiredDisciplines if they are no longer in available list
+  useEffect(() => {
+    setRequiredDisciplines(prev => prev.filter(d => availableDisciplines.includes(d)));
+  }, [availableDisciplines]);
 
   useEffect(() => {
     if (sessionData?.name) {
@@ -100,7 +116,7 @@ export function HostView({
     }
     setIsAnimating(true);
     try {
-      await shuffleGroups(groupCount, avoidSamePlacements, useDisciplines);
+      await shuffleGroups(groupCount, avoidSamePlacements, useDisciplines, requiredDisciplines);
       toast({ title: 'Success', description: 'Groups generated successfully!' });
     } catch (error: any) {
       console.error('Grouping error details:', error);
@@ -301,6 +317,33 @@ export function HostView({
                 </div>
                 <Switch id="discipline-switch" checked={useDisciplines} onCheckedChange={setUseDisciplines} />
               </div>
+              {useDisciplines && availableDisciplines.length > 0 && (
+                <div className="pl-1 pt-2 space-y-2 animate-in slide-in-from-top-2 duration-200">
+                  <p className="text-[9px] font-black text-muted-foreground uppercase tracking-wider">Require at least one in every group:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {availableDisciplines.map(disc => {
+                      const isChecked = requiredDisciplines.includes(disc);
+                      return (
+                        <label key={disc} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-all cursor-pointer ${isChecked ? 'bg-rose-500/10 border-rose-500/30 text-rose-500' : 'bg-secondary/40 border-border hover:bg-secondary text-muted-foreground'}`}>
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setRequiredDisciplines(prev => [...prev, disc]);
+                              } else {
+                                setRequiredDisciplines(prev => prev.filter(d => d !== disc));
+                              }
+                            }}
+                            className="rounded border-gray-300 text-rose-500 focus:ring-rose-500 accent-rose-500 w-3 h-3"
+                          />
+                          <span>{disc}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
             <Separator />
             <div className="space-y-4">
@@ -414,25 +457,35 @@ export function HostView({
                   participants.map((p, i) => (
                     <div
                       key={p.id}
-                      className="animate-in zoom-in slide-in-from-bottom-2 bg-card border px-4 py-3 rounded-2xl shadow-sm hover:shadow-md transition-all flex items-center gap-3"
+                      className="animate-in zoom-in slide-in-from-bottom-2 bg-card border pl-4 pr-3 py-3 rounded-2xl shadow-sm hover:shadow-md transition-all flex items-center justify-between gap-3 group/card"
                       style={{ animationDelay: `${i * 40}ms` }}
                     >
-                      <span className="text-2xl">{p.avatar}</span>
-                      <div className="flex flex-col">
-                        <span className="font-bold text-foreground text-sm">{p.name}</span>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {p.discipline && (
-                            <span className="text-[9px] bg-rose-500/10 text-rose-600 px-1.5 py-0.2 rounded font-bold">
-                              {p.discipline}
-                            </span>
-                          )}
-                          {p.current_placement && (
-                            <span className="text-[9px] bg-purple-500/10 text-purple-600 px-1.5 py-0.2 rounded font-bold">
-                              Original: {p.current_placement}
-                            </span>
-                          )}
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="text-2xl flex-shrink-0">{p.avatar}</span>
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-bold text-foreground text-sm truncate">{p.name}</span>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {p.discipline && (
+                              <span className="text-[9px] bg-rose-500/10 text-rose-600 px-1.5 py-0.2 rounded font-bold">
+                                {p.discipline}
+                              </span>
+                            )}
+                            {p.current_placement && (
+                              <span className="text-[9px] bg-purple-500/10 text-purple-600 px-1.5 py-0.2 rounded font-bold">
+                                Original: {p.current_placement}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onRemoveParticipant(p.id)}
+                        className="w-7 h-7 rounded-lg hover:bg-rose-500/10 hover:text-rose-500 opacity-100 sm:opacity-0 sm:group-hover/card:opacity-100 transition-opacity flex-shrink-0"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </Button>
                     </div>
                   ))
                 )}

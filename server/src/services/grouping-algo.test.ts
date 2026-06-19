@@ -2,6 +2,19 @@ import { generateGroups } from './grouping-algo';
 import { SyncParticipant } from '@afda/shared/types';
 
 describe('grouping-algo', () => {
+  beforeEach(() => {
+    let mockRandomVal = 0.05;
+    jest.spyOn(Math, 'random').mockImplementation(() => {
+      // Predictable mock random values to ensure test stability
+      mockRandomVal = (mockRandomVal + 0.33) % 1;
+      return mockRandomVal;
+    });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   const mockParticipants: SyncParticipant[] = [
     { id: '1', session_id: 's1', name: 'Alice', avatar: '🐱', discipline: 'Finance', current_placement: 'Team A', joined_at: new Date().toISOString() },
     { id: '2', session_id: 's1', name: 'Bob', avatar: '🐶', discipline: 'Finance', current_placement: 'Team A', joined_at: new Date().toISOString() },

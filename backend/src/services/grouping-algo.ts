@@ -27,6 +27,7 @@ export interface GroupingOptions {
   groupCount: number;
   useDisciplines: boolean;
   avoidSamePlacements: boolean;
+  requiredDisciplines?: string[];
 }
 
 
@@ -50,7 +51,7 @@ export function generateGroups(
   participants: SyncParticipant[],
   options: GroupingOptions
 ): SyncGroup[] {
-  const { groupCount, useDisciplines, avoidSamePlacements } = options;
+  const { groupCount, useDisciplines, avoidSamePlacements, requiredDisciplines } = options;
 
   if (participants.length === 0) {
     return [];
@@ -64,9 +65,9 @@ export function generateGroups(
         members: participants.map(p => ({
           name: p.name,
           avatar: p.avatar,
-          discipline: p.discipline,
-          student_number: p.student_number,
-          current_placement: p.current_placement
+          discipline: p.discipline || undefined,
+          student_number: p.student_number || undefined,
+          current_placement: p.current_placement || undefined
         }))
       }
     ];
@@ -78,8 +79,77 @@ export function generateGroups(
     members: []
   }));
 
-  // Shuffle all participants initially to introduce randomness
-  let queue = shuffleArray(participants);
+  // Seeding phase for required disciplines
+  const seededParticipantIds = new Set<string>();
+
+  if (useDisciplines && requiredDisciplines && requiredDisciplines.length > 0) {
+    requiredDisciplines.forEach(reqDisc => {
+      // Find all participants of this discipline who haven't been seeded yet
+      const candidates = participants.filter(
+        p => p.id && p.discipline && p.discipline.trim().toLowerCase() === reqDisc.trim().toLowerCase() && !seededParticipantIds.has(p.id)
+      );
+
+      if (candidates.length === 0) return;
+
+      const shuffledCandidates = shuffleArray(candidates);
+      let candidateIndex = 0;
+
+      // Assign up to 1 candidate per group to ensure representation
+      for (let gIdx = 0; gIdx < groups.length && candidateIndex < shuffledCandidates.length; gIdx++) {
+        const group = groups[gIdx];
+
+        // Check if group already has this discipline represented
+        const hasRepresentation = group.members.some(
+          m => m.discipline && m.discipline.trim().toLowerCase() === reqDisc.trim().toLowerCase()
+        );
+        if (hasRepresentation) continue;
+
+        // Score candidates based on placement conflicts and select the best one
+        let bestCandidateIdx = candidateIndex;
+        let lowestConflictScore = Infinity;
+
+        for (let cIdx = candidateIndex; cIdx < shuffledCandidates.length; cIdx++) {
+          const candidate = shuffledCandidates[cIdx];
+          let conflictScore = 0;
+
+          if (avoidSamePlacements && candidate.current_placement) {
+            const hasConflict = group.members.some(
+              m => m.current_placement && m.current_placement.toLowerCase() === candidate.current_placement!.toLowerCase()
+            );
+            if (hasConflict) conflictScore += 1000;
+          }
+
+          if (conflictScore < lowestConflictScore) {
+            lowestConflictScore = conflictScore;
+            bestCandidateIdx = cIdx;
+          }
+        }
+
+        // Swap the best candidate to the current index
+        const temp = shuffledCandidates[candidateIndex];
+        shuffledCandidates[candidateIndex] = shuffledCandidates[bestCandidateIdx];
+        shuffledCandidates[bestCandidateIdx] = temp;
+
+        const selected = shuffledCandidates[candidateIndex];
+        group.members.push({
+          name: selected.name,
+          avatar: selected.avatar,
+          discipline: selected.discipline || undefined,
+          student_number: selected.student_number || undefined,
+          current_placement: selected.current_placement || undefined
+        });
+
+        if (selected.id) {
+          seededParticipantIds.add(selected.id);
+        }
+        candidateIndex++;
+      }
+    });
+  }
+
+  // Filter out already seeded participants for the general queue
+  const remainingParticipants = participants.filter(p => !p.id || !seededParticipantIds.has(p.id));
+  let queue = shuffleArray(remainingParticipants);
 
   // If using disciplines, group participants by discipline so we distribute them round-robin
   if (useDisciplines) {
