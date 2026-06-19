@@ -239,7 +239,11 @@ export default function ClientPage({ sessionId, isHost }: ClientPageProps) {
       throw new Error(result.error?.message || 'Failed to upload roster file');
     }
 
-    return result.data;
+    return {
+      students: result.data.session?.roster || [],
+      summary: result.data.summary,
+      studentsCount: result.data.studentsCount
+    };
   };
 
   // Host action: Pre-populate lobby using the uploaded roster
