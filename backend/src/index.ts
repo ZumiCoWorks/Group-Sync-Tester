@@ -46,25 +46,24 @@ export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
 
 /**
  * Middleware: CORS
- * Use a function origin checker so we can safely return the request origin
- * when it's in our allowlist. This avoids returning '*' when credentials=true.
+ * Dynamic origin checker: allows any *.vercel.app subdomain, localhost,
+ * and any additional origins supplied via FRONTEND_URL env var.
+ * This avoids hard-coding specific preview/deployment URLs.
  */
-const allowedOrigins = new Set([
-  'http://localhost:3000',
-  'http://localhost:3001',
-  'http://localhost:3002',
-  'https://student-public.vercel.app',
-  'https://student-public-zcw-nav-eaze.vercel.app',
-  'https://student-public-5mz52dpkk-zcw-nav-eaze.vercel.app',
-  'https://slot-booking-red.vercel.app',
-  ...(process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',').map((s) => s.trim()) : []),
-].filter(Boolean));
+const extraOrigins = new Set(
+  (process.env.FRONTEND_URL ?? '').split(',').map((s) => s.trim()).filter(Boolean)
+);
 
 const corsOptions = {
-  origin: (origin: string | undefined, callback: any) => {
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     // Allow non-browser requests (curl, server-to-server) when origin is undefined
     if (!origin) return callback(null, true);
-    if (allowedOrigins.has(origin)) return callback(null, true);
+    // Allow any Vercel deployment URL
+    if (origin.endsWith('.vercel.app')) return callback(null, true);
+    // Allow localhost on any port
+    if (origin.startsWith('http://localhost:') || origin.startsWith('https://localhost:')) return callback(null, true);
+    // Allow any explicitly configured extra origins
+    if (extraOrigins.has(origin)) return callback(null, true);
     return callback(new Error('CORS policy: Origin not allowed'), false);
   },
   credentials: true,
@@ -75,6 +74,7 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
+
 
 /**
  * Middleware: JSON parsing
