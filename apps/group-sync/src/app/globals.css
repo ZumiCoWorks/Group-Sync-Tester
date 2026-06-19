@@ -4,6 +4,8 @@
 
 :root {
   color-scheme: light;
+
+  /* ── AFDA Brand Variables ───────────────────────── */
   --bg-primary: #ffffff;
   --bg-secondary: #f8fafc;
   --border-muted: #e2e8f0;
@@ -20,7 +22,39 @@
   --muted: #475569;
   --accent: #e11d48;
   --accent-2: #2563eb;
+
+  /* ── shadcn/ui Required Variables ──────────────── */
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 84% 4.9%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 84% 4.9%;
+
+  --primary: 346 77% 50%;
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 210 40% 96.1%;
+  --secondary-foreground: 222.2 47.4% 11.2%;
+
+  --muted-color: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+
+  --accent-color: 210 40% 96.1%;
+  --accent-foreground: 222.2 47.4% 11.2%;
+
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+
+  --border-color: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 346 77% 50%;
+
+  --radius: 0.5rem;
 }
+
 
 html {
   scroll-behavior: smooth;
