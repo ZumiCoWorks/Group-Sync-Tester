@@ -58,6 +58,117 @@ export function HostView({
   const [sessionName, setSessionName] = useState(sessionData?.name || '');
   const [isEditingName, setIsEditingName] = useState(false);
   const [requiredDisciplines, setRequiredDisciplines] = useState<string[]>([]);
+  const [selectedGroups, setSelectedGroups] = useState<number[]>([]);
+  const [isDraggingOverGroup, setIsDraggingOverGroup] = useState<number | null>(null);
+
+  useEffect(() => {
+    setSelectedGroups([]);
+  }, [sessionData?.status, sessionData?.groups?.length]);
+
+  const handleReshuffleSelected = async () => {
+    if (!sessionData || selectedGroups.length < 2) return;
+    const originalGroups = [...sessionData.groups];
+    const targetSizes = selectedGroups.map(idx => originalGroups[idx].members.length);
+    const membersToShuffle = selectedGroups.flatMap(idx => originalGroups[idx].members);
+    
+    // Fisher-Yates shuffle
+    const shuffled = [...membersToShuffle];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+
+    let currentIdx = 0;
+    const updatedGroups = originalGroups.map((g, idx) => {
+      const selIdx = selectedGroups.indexOf(idx);
+      if (selIdx === -1) return g;
+      const size = targetSizes[selIdx];
+      const slice = shuffled.slice(currentIdx, currentIdx + size);
+      currentIdx += size;
+      return { ...g, members: slice };
+    });
+
+    try {
+      const { error } = await supabase
+        .from('sync_sessions')
+        .update({ groups: updatedGroups })
+        .eq('code', sessionId);
+
+      if (error) throw error;
+      toast({ title: 'Reshuffle Completed', description: 'Successfully shuffled selected groups.' });
+      setSelectedGroups([]);
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Error', description: err.message || 'Failed to reshuffle selected groups.' });
+    }
+  };
+
+  const handleDragStart = (e: React.DragEvent, sourceGroupIdx: number, memberIdx: number) => {
+    e.dataTransfer.setData('application/json', JSON.stringify({ sourceGroupIdx, memberIdx }));
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetGroupIdx: number) => {
+    e.preventDefault();
+    setIsDraggingOverGroup(null);
+    try {
+      const dataStr = e.dataTransfer.getData('application/json');
+      if (!dataStr) return;
+      const { sourceGroupIdx, memberIdx } = JSON.parse(dataStr);
+      if (sourceGroupIdx === targetGroupIdx) return;
+      if (!sessionData) return;
+
+      const originalGroups = [...sessionData.groups];
+      const memberToMove = originalGroups[sourceGroupIdx].members[memberIdx];
+
+      const updatedSourceMembers = originalGroups[sourceGroupIdx].members.filter((_, idx) => idx !== memberIdx);
+      const updatedTargetMembers = [...originalGroups[targetGroupIdx].members, memberToMove];
+
+      const updatedGroups = originalGroups.map((g, idx) => {
+        if (idx === sourceGroupIdx) return { ...g, members: updatedSourceMembers };
+        if (idx === targetGroupIdx) return { ...g, members: updatedTargetMembers };
+        return g;
+      });
+
+      const { error } = await supabase
+        .from('sync_sessions')
+        .update({ groups: updatedGroups })
+        .eq('code', sessionId);
+
+      if (error) throw error;
+      toast({ title: 'Student Reassigned', description: `Moved ${memberToMove.name} to Group ${targetGroupIdx + 1}` });
+    } catch (err) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to move student.' });
+    }
+  };
+
+  const handleRemoveFromGroup = async (groupIndex: number, memberIndex: number, member: any) => {
+    if (!sessionData) return;
+    const updatedGroups = sessionData.groups.map((g, gIdx) => {
+      if (gIdx !== groupIndex) return g;
+      return { ...g, members: g.members.filter((_, mIdx) => mIdx !== memberIndex) };
+    });
+
+    try {
+      const { error } = await supabase
+        .from('sync_sessions')
+        .update({ groups: updatedGroups })
+        .eq('code', sessionId);
+
+      if (error) throw error;
+
+      const match = participants.find(p => 
+        (member.student_number && String(p.student_number).trim().toLowerCase() === String(member.student_number).trim().toLowerCase()) ||
+        (p.name && String(p.name).trim().toLowerCase() === String(member.name).trim().toLowerCase())
+      );
+
+      if (match) {
+        await onRemoveParticipant(match.id);
+      }
+      toast({ title: 'Student Removed', description: `Successfully removed ${member.name} from the room` });
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Error', description: err.message || 'Failed to remove student' });
+    }
+  };
 
   // Unique disciplines in current lobby participants
   const availableDisciplines = useMemo(() => {
@@ -381,6 +492,16 @@ export function HostView({
 
               {sessionData?.status === 'grouped' && (
                 <div className="flex gap-2 flex-wrap">
+                  {selectedGroups.length >= 2 && (
+                    <Button
+                      onClick={handleReshuffleSelected}
+                      className="bg-rose-500 text-white hover:bg-rose-600 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-rose-500/20 transform active:scale-95 transition-all"
+                      size="sm"
+                    >
+                      <RotateCcw className="w-3 h-3 mr-1 animate-pulse" />
+                      Reshuffle Selected ({selectedGroups.length})
+                    </Button>
+                  )}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="outline" size="sm" className="text-[10px] font-black uppercase tracking-widest">
@@ -413,36 +534,88 @@ export function HostView({
 
             {sessionData?.status === 'grouped' ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in duration-500">
-                {sessionData.groups.map((group, idx) => (
-                  <div key={idx} className="bg-secondary p-6 rounded-3xl border group hover:bg-card hover:shadow-xl hover:border-rose-500/20 transition-all">
-                    <div className="flex justify-between items-center mb-6">
-                      <h3 className="text-sm font-black text-foreground uppercase tracking-tighter font-headline">Group {idx + 1}</h3>
-                      <span className="text-[10px] font-bold text-rose-600 bg-rose-500/10 px-2 py-1 rounded-md">{group.members.length} Students</span>
-                    </div>
-                    <div className="space-y-2">
-                      {group.members.map((m, i) => (
-                        <div key={i} className="flex flex-col bg-card p-3 rounded-xl shadow-sm border text-sm font-bold text-foreground">
-                          <div className="flex items-center gap-3">
-                            <span className="text-xl">{m.avatar}</span>
-                            <span>{m.name}</span>
-                          </div>
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            {m.discipline && (
-                              <span className="text-[9px] bg-rose-500/10 text-rose-600 px-2 py-0.5 rounded-full font-bold">
-                                {m.discipline}
-                              </span>
-                            )}
-                            {m.current_placement && (
-                              <span className="text-[9px] bg-purple-500/10 text-purple-600 px-2 py-0.5 rounded-full font-bold">
-                                Original: {m.current_placement}
-                              </span>
-                            )}
-                          </div>
+                {sessionData.groups.map((group, idx) => {
+                  const isOver = isDraggingOverGroup === idx;
+                  return (
+                    <div
+                      key={idx}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDragEnter={() => setIsDraggingOverGroup(idx)}
+                      onDragLeave={() => setIsDraggingOverGroup(null)}
+                      onDrop={(e) => handleDrop(e, idx)}
+                      className={`p-6 rounded-3xl border transition-all duration-200 ${
+                        isOver
+                          ? 'bg-rose-500/5 border-dashed border-rose-500 shadow-lg shadow-rose-500/10 scale-[1.02]'
+                          : 'bg-secondary border-border hover:bg-card hover:shadow-xl hover:border-rose-500/20'
+                      }`}
+                    >
+                      <div className="flex justify-between items-center mb-6">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={selectedGroups.includes(idx)}
+                            onChange={() => {
+                              setSelectedGroups(prev =>
+                                prev.includes(idx)
+                                  ? prev.filter(item => item !== idx)
+                                  : [...prev, idx]
+                              );
+                            }}
+                            className="rounded border-gray-300 text-rose-500 focus:ring-rose-500 accent-rose-500 w-4 h-4 cursor-pointer"
+                          />
+                          <h3 className="text-sm font-black text-foreground uppercase tracking-tighter font-headline">Group {idx + 1}</h3>
                         </div>
-                      ))}
+                        <span className="text-[10px] font-bold text-rose-600 bg-rose-500/10 px-2 py-1 rounded-md">{group.members.length} Students</span>
+                      </div>
+                      <div className="space-y-2">
+                        {group.members.map((m, i) => (
+                          <div
+                            key={i}
+                            draggable={true}
+                            onDragStart={(e) => handleDragStart(e, idx, i)}
+                            className="flex flex-col bg-card p-3 rounded-xl shadow-sm border text-sm font-bold text-foreground relative group/student cursor-grab active:cursor-grabbing hover:border-rose-500/30 transition-colors"
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-3">
+                                <span className="text-xl">{m.avatar}</span>
+                                <span>{m.name}</span>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleRemoveFromGroup(idx, i, m)}
+                                className="w-6 h-6 rounded-md hover:bg-rose-500/10 hover:text-rose-500 opacity-100 md:opacity-0 md:group-hover/student:opacity-100 transition-opacity flex-shrink-0"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {m.discipline && (
+                                <span className="text-[9px] bg-rose-500/10 text-rose-600 px-2 py-0.5 rounded-full font-bold">
+                                  {m.discipline}
+                                </span>
+                              )}
+                              {m.current_placement && (
+                                <span className="text-[9px] bg-purple-500/10 text-purple-600 px-2 py-0.5 rounded-full font-bold">
+                                  Original: {m.current_placement}
+                                </span>
+                              )}
+                              {m.performance && (
+                                <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${
+                                  m.performance === 'good'
+                                    ? 'bg-emerald-500/10 text-emerald-600'
+                                    : 'bg-amber-500/10 text-amber-600'
+                                }`}>
+                                  Rating: {m.performance}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="flex flex-wrap gap-4">

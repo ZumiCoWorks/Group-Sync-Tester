@@ -5,6 +5,7 @@ export interface ParsedStudent {
   studentNumber?: string;
   discipline?: string;
   currentPlacement?: string;
+  performance?: string;
 }
 
 export interface ParseRosterResult {
@@ -15,6 +16,7 @@ export interface ParseRosterResult {
     totalStudents: number;
     withDiscipline: number;
     withPlacement: number;
+    withPerformance: number;
   };
 }
 
@@ -90,6 +92,7 @@ export function parseRosterExcel(buffer: Buffer): ParseRosterResult {
     const lastNameCol = findColumnIndex(clHeaders, ['last name', 'surname', 'family name']);
     const studentNumCol = findColumnIndex(clHeaders, ['student number', 'student id', 'student no', 'id number', 'snumber']);
     const disciplineCol = findColumnIndex(clHeaders, ['programme', 'program', 'discipline', 'major', 'course', 'school', 'stream']);
+    const performanceCol = findColumnIndex(clHeaders, ['performance', 'rating', 'grade', 'rank', 'evaluation', 'level']);
 
     if (firstNameCol === -1 && lastNameCol === -1) {
       return { 
@@ -116,11 +119,22 @@ export function parseRosterExcel(buffer: Buffer): ParseRosterResult {
 
       const studentNumber = studentNumCol !== -1 ? String(row[studentNumCol] ?? '').trim() : undefined;
       const discipline = disciplineCol !== -1 ? String(row[disciplineCol] ?? '').trim() : undefined;
+      
+      const performanceRaw = performanceCol !== -1 ? String(row[performanceCol] ?? '').trim().toLowerCase() : '';
+      let performance: string | undefined;
+      if (performanceRaw) {
+        if (performanceRaw.includes('good') || performanceRaw.startsWith('g') || performanceRaw === 'high' || performanceRaw === 'strong') {
+          performance = 'good';
+        } else if (performanceRaw.includes('bad') || performanceRaw.startsWith('b') || performanceRaw.includes('weak') || performanceRaw === 'low' || performanceRaw === 'poor') {
+          performance = 'bad';
+        }
+      }
 
       const student: ParsedStudent = {
         name: fullName,
         studentNumber,
         discipline,
+        performance,
       };
 
       if (studentNumber) {
@@ -142,6 +156,7 @@ export function parseRosterExcel(buffer: Buffer): ParseRosterResult {
         const plFirstNameCol = findColumnIndex(plHeaders, ['first name', 'given name', 'name']);
         const plLastNameCol = findColumnIndex(plHeaders, ['last name', 'surname', 'family name']);
         const teamCol = findColumnIndex(plHeaders, ['team', 'group', 'placement', 'current team', 'current group']);
+        const plPerformanceCol = findColumnIndex(plHeaders, ['performance', 'rating', 'grade', 'rank', 'evaluation', 'level']);
 
         if (teamCol !== -1) {
           for (let i = plHeaderIdx + 1; i < placementsRows.length; i++) {
@@ -157,6 +172,16 @@ export function parseRosterExcel(buffer: Buffer): ParseRosterResult {
             const placement = String(row[teamCol] ?? '').trim();
             if (!placement) continue;
 
+            const performanceRaw = plPerformanceCol !== -1 ? String(row[plPerformanceCol] ?? '').trim().toLowerCase() : '';
+            let performance: string | undefined;
+            if (performanceRaw) {
+              if (performanceRaw.includes('good') || performanceRaw.startsWith('g') || performanceRaw === 'high' || performanceRaw === 'strong') {
+                performance = 'good';
+              } else if (performanceRaw.includes('bad') || performanceRaw.startsWith('b') || performanceRaw.includes('weak') || performanceRaw === 'low' || performanceRaw === 'poor') {
+                performance = 'bad';
+              }
+            }
+
             // Try to match student
             let matchedStudent: ParsedStudent | undefined;
 
@@ -170,12 +195,16 @@ export function parseRosterExcel(buffer: Buffer): ParseRosterResult {
 
             if (matchedStudent) {
               matchedStudent.currentPlacement = placement;
+              if (performance) {
+                matchedStudent.performance = performance;
+              }
             } else if (fullName) {
               // Student in placements tab but not class list. Add them anyway.
               const newStudent: ParsedStudent = {
                 name: fullName,
                 studentNumber,
                 currentPlacement: placement,
+                performance
               };
               if (studentNumber) {
                 studentsMap.set(studentNumber.toLowerCase(), newStudent);
@@ -190,6 +219,7 @@ export function parseRosterExcel(buffer: Buffer): ParseRosterResult {
     const uniqueStudents = Array.from(studentsByNameMap.values());
     const withDiscipline = uniqueStudents.filter(s => !!s.discipline).length;
     const withPlacement = uniqueStudents.filter(s => !!s.currentPlacement).length;
+    const withPerformance = uniqueStudents.filter(s => !!s.performance).length;
 
     return {
       success: true,
@@ -198,6 +228,7 @@ export function parseRosterExcel(buffer: Buffer): ParseRosterResult {
         totalStudents: uniqueStudents.length,
         withDiscipline,
         withPlacement,
+        withPerformance
       }
     };
   } catch (error: any) {

@@ -249,8 +249,28 @@ router.post('/session/:code/group', async (req: Request, res: Response, next: Ne
       throw new ApiError(400, 'NO_PARTICIPANTS', 'Cannot group empty lobby');
     }
 
+    // Attach performance rating from the session roster in-memory
+    const roster = (session.roster || []) as any[];
+    const participantsWithPerf = participants.map((p: any) => {
+      let matched: any = null;
+      if (p.student_number) {
+        matched = roster.find(
+          s => s.studentNumber && String(s.studentNumber).trim().toLowerCase() === String(p.student_number).trim().toLowerCase()
+        );
+      }
+      if (!matched) {
+        matched = roster.find(
+          s => s.name && String(s.name).trim().toLowerCase() === String(p.name).trim().toLowerCase()
+        );
+      }
+      return {
+        ...p,
+        performance: matched?.performance || null
+      };
+    });
+
     // Generate groups
-    const groups = generateGroups(participants as any[], {
+    const groups = generateGroups(participantsWithPerf as any[], {
       groupCount: targetGroupCount,
       useDisciplines: !!useDisciplines,
       avoidSamePlacements: !!avoidSamePlacements,

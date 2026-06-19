@@ -5,6 +5,7 @@ export interface SyncGroupMember {
   discipline?: string | null;
   student_number?: string | null;
   current_placement?: string | null;
+  performance?: string | null;
 }
 
 export interface SyncGroup {
@@ -21,6 +22,7 @@ export interface SyncParticipant {
   discipline?: string | null;
   current_placement?: string | null;
   joined_at?: string;
+  performance?: string | null;
 }
 
 export interface GroupingOptions {
@@ -67,7 +69,8 @@ export function generateGroups(
           avatar: p.avatar,
           discipline: p.discipline || undefined,
           student_number: p.student_number || undefined,
-          current_placement: p.current_placement || undefined
+          current_placement: p.current_placement || undefined,
+          performance: p.performance || undefined
         }))
       }
     ];
@@ -136,7 +139,8 @@ export function generateGroups(
           avatar: selected.avatar,
           discipline: selected.discipline || undefined,
           student_number: selected.student_number || undefined,
-          current_placement: selected.current_placement || undefined
+          current_placement: selected.current_placement || undefined,
+          performance: selected.performance || undefined
         });
 
         if (selected.id) {
@@ -217,6 +221,14 @@ export function generateGroups(
         score += sameDisciplineCount * 100; // Small penalty per matching discipline
       }
 
+      // 4. Performance balance penalty: try to distribute performance ratings ('good', 'bad') evenly
+      if (participant.performance) {
+        const samePerformanceCount = group.members.filter(
+          m => m.performance === participant.performance
+        ).length;
+        score += samePerformanceCount * 2000; // Large penalty to enforce even distribution
+      }
+
       if (score < lowestScore) {
         lowestScore = score;
         bestGroupIndex = idx;
@@ -232,9 +244,10 @@ export function generateGroups(
     groups[bestGroupIndex].members.push({
       name: participant.name,
       avatar: participant.avatar,
-      discipline: participant.discipline,
-      student_number: participant.student_number,
-      current_placement: participant.current_placement
+      discipline: participant.discipline || undefined,
+      student_number: participant.student_number || undefined,
+      current_placement: participant.current_placement || undefined,
+      performance: participant.performance || undefined
     });
   });
 

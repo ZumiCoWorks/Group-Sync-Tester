@@ -61,4 +61,28 @@ describe('grouping-algo', () => {
       expect(uniquePlacements.size).toBe(3);
     });
   });
+
+  it('should balance student performance levels across groups', () => {
+    const participantsWithPerformance: SyncParticipant[] = [
+      { id: '1', session_id: 's1', name: 'Alice', avatar: '🐱', discipline: 'Finance', current_placement: 'Team A', performance: 'bad', joined_at: new Date().toISOString() },
+      { id: '2', session_id: 's1', name: 'Bob', avatar: '🐶', discipline: 'Finance', current_placement: 'Team A', performance: 'bad', joined_at: new Date().toISOString() },
+      { id: '3', session_id: 's1', name: 'Charlie', avatar: '🦊', discipline: 'Marketing', current_placement: 'Team B', performance: 'good', joined_at: new Date().toISOString() },
+      { id: '4', session_id: 's1', name: 'David', avatar: '🦁', discipline: 'Marketing', current_placement: 'Team B', performance: 'good', joined_at: new Date().toISOString() },
+      { id: '5', session_id: 's1', name: 'Eve', avatar: '🐸', discipline: 'Design', current_placement: 'Team C', performance: 'good', joined_at: new Date().toISOString() },
+      { id: '6', session_id: 's1', name: 'Frank', avatar: '🐼', discipline: 'Design', current_placement: 'Team C', performance: 'good', joined_at: new Date().toISOString() },
+    ];
+
+    const result = generateGroups(participantsWithPerformance, { groupCount: 2, useDisciplines: false, avoidSamePlacements: false });
+    expect(result.length).toBe(2);
+
+    result.forEach(group => {
+      expect(group.members.length).toBe(3);
+      // Each group of 3 should get exactly one 'bad' performer and two 'good' performers (since we have 2 bad and 4 good total).
+      const performances = group.members.map(m => m.performance);
+      const badCount = performances.filter(p => p === 'bad').length;
+      const goodCount = performances.filter(p => p === 'good').length;
+      expect(badCount).toBe(1);
+      expect(goodCount).toBe(2);
+    });
+  });
 });

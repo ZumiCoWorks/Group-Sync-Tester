@@ -408,6 +408,7 @@ export interface SyncGroupMember {
   discipline?: string;
   student_number?: string;
   current_placement?: string;
+  performance?: string;
 }
 
 export interface SyncParticipant {
@@ -419,5 +420,6 @@ export interface SyncParticipant {
   discipline?: string;
   current_placement?: string;
   joined_at: string;
+  performance?: string;
 }
 
