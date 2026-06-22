@@ -19,6 +19,14 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Ensure all custom columns exist even if the table was created earlier without them
+ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name VARCHAR(100) NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name  VARCHAR(100) NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS role       VARCHAR(50)  NOT NULL DEFAULT 'student';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS domain     VARCHAR(255);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
 CREATE INDEX IF NOT EXISTS idx_users_email  ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_role   ON users(role);
 CREATE INDEX IF NOT EXISTS idx_users_domain ON users(domain);
@@ -139,8 +147,16 @@ CREATE TABLE IF NOT EXISTS slots (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_slots_batch_id        ON slots(batch_id);
-CREATE INDEX IF NOT EXISTS idx_slots_start_time      ON slots(start_time);
+ALTER TABLE slots ADD COLUMN IF NOT EXISTS batch_id      UUID REFERENCES batches(id) ON DELETE CASCADE;
+ALTER TABLE slots ADD COLUMN IF NOT EXISTS start_time    TIMESTAMP;
+ALTER TABLE slots ADD COLUMN IF NOT EXISTS end_time      TIMESTAMP;
+ALTER TABLE slots ADD COLUMN IF NOT EXISTS capacity      INT NOT NULL DEFAULT 1;
+ALTER TABLE slots ADD COLUMN IF NOT EXISTS booking_count INT DEFAULT 0;
+ALTER TABLE slots ADD COLUMN IF NOT EXISTS created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE slots ADD COLUMN IF NOT EXISTS updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
+CREATE INDEX IF NOT EXISTS idx_slots_batch_id         ON slots(batch_id);
+CREATE INDEX IF NOT EXISTS idx_slots_start_time       ON slots(start_time);
 CREATE INDEX IF NOT EXISTS idx_slots_batch_start_time ON slots(batch_id, start_time);
 
 -- ─── BOOKINGS ────────────────────────────────────────────────────────────────
@@ -160,11 +176,23 @@ CREATE TABLE IF NOT EXISTS bookings (
   marked_attended_at TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_bookings_slot_id              ON bookings(slot_id);
-CREATE INDEX IF NOT EXISTS idx_bookings_batch_id             ON bookings(batch_id);
-CREATE INDEX IF NOT EXISTS idx_bookings_student_email        ON bookings(student_email);
-CREATE INDEX IF NOT EXISTS idx_bookings_status               ON bookings(status);
-CREATE INDEX IF NOT EXISTS idx_bookings_confirmation_number  ON bookings(confirmation_number);
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS slot_id              UUID REFERENCES slots(id)   ON DELETE CASCADE;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS batch_id             UUID REFERENCES batches(id) ON DELETE CASCADE;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS student_name         VARCHAR(255);
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS student_email        VARCHAR(255);
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS student_id_external  VARCHAR(255);
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS status               VARCHAR(50) NOT NULL DEFAULT 'confirmed';
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS confirmation_number  VARCHAR(50);
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS booked_at            TIMESTAMP;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS created_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS updated_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS marked_attended_at   TIMESTAMP;
+
+CREATE INDEX IF NOT EXISTS idx_bookings_slot_id             ON bookings(slot_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_batch_id            ON bookings(batch_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_student_email       ON bookings(student_email);
+CREATE INDEX IF NOT EXISTS idx_bookings_status              ON bookings(status);
+CREATE INDEX IF NOT EXISTS idx_bookings_confirmation_number ON bookings(confirmation_number);
 
 -- ─── VENUE BOOKING REQUESTS ───────────────────────────────────────────────────
 
@@ -225,6 +253,17 @@ CREATE TABLE IF NOT EXISTS import_jobs (
   completed_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE import_jobs ADD COLUMN IF NOT EXISTS batch_id           UUID REFERENCES batches(id);
+ALTER TABLE import_jobs ADD COLUMN IF NOT EXISTS created_by_user_id UUID REFERENCES users(id);
+ALTER TABLE import_jobs ADD COLUMN IF NOT EXISTS total_rows         INT NOT NULL DEFAULT 0;
+ALTER TABLE import_jobs ADD COLUMN IF NOT EXISTS success_count      INT DEFAULT 0;
+ALTER TABLE import_jobs ADD COLUMN IF NOT EXISTS error_count        INT DEFAULT 0;
+ALTER TABLE import_jobs ADD COLUMN IF NOT EXISTS status             VARCHAR(50) NOT NULL DEFAULT 'pending';
+ALTER TABLE import_jobs ADD COLUMN IF NOT EXISTS errors             JSONB;
+ALTER TABLE import_jobs ADD COLUMN IF NOT EXISTS started_at         TIMESTAMP;
+ALTER TABLE import_jobs ADD COLUMN IF NOT EXISTS completed_at       TIMESTAMP;
+ALTER TABLE import_jobs ADD COLUMN IF NOT EXISTS created_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 
 CREATE INDEX IF NOT EXISTS idx_import_jobs_batch_id           ON import_jobs(batch_id);
 CREATE INDEX IF NOT EXISTS idx_import_jobs_created_by_user_id ON import_jobs(created_by_user_id);
