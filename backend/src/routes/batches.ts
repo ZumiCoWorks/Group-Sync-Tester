@@ -365,6 +365,8 @@ router.post('/', verifyToken, requireRole(['staff', 'lecturer', 'admin']), async
       slotDurationMinutes,
       perSlotCapacity,
       batchCapacity,
+      dayStartTime,
+      dayEndTime,
       lunchBreakStart,
       lunchBreakEnd,
       slots,
@@ -404,6 +406,8 @@ router.post('/', verifyToken, requireRole(['staff', 'lecturer', 'admin']), async
       batch_capacity: batchCapacity !== undefined && batchCapacity !== null ? Number(batchCapacity) : null,
       lunch_break_start: typeof lunchBreakStart === 'string' && lunchBreakStart.trim() ? lunchBreakStart.trim() : undefined,
       lunch_break_end: typeof lunchBreakEnd === 'string' && lunchBreakEnd.trim() ? lunchBreakEnd.trim() : undefined,
+      day_start_time: typeof dayStartTime === 'string' && dayStartTime.trim() ? dayStartTime.trim() : undefined,
+      day_end_time: typeof dayEndTime === 'string' && dayEndTime.trim() ? dayEndTime.trim() : undefined,
       slots: Array.isArray(slots) ? slots : undefined,
     });
 
@@ -450,6 +454,8 @@ router.put('/:batchId', verifyToken, requireRole(['staff', 'lecturer', 'admin'])
       batchCapacity,
       lunchBreakStart,
       lunchBreakEnd,
+      dayStartTime,
+      dayEndTime,
     } = req.body;
 
     const batch = await updateBatch(batchId, {
@@ -463,6 +469,8 @@ router.put('/:batchId', verifyToken, requireRole(['staff', 'lecturer', 'admin'])
       batch_capacity: batchCapacity !== undefined && batchCapacity !== null ? Number(batchCapacity) : undefined,
       lunch_break_start: typeof lunchBreakStart === 'string' && lunchBreakStart.trim() ? lunchBreakStart.trim() : undefined,
       lunch_break_end: typeof lunchBreakEnd === 'string' && lunchBreakEnd.trim() ? lunchBreakEnd.trim() : undefined,
+      day_start_time: typeof dayStartTime === 'string' && dayStartTime.trim() ? dayStartTime.trim() : undefined,
+      day_end_time: typeof dayEndTime === 'string' && dayEndTime.trim() ? dayEndTime.trim() : undefined,
     });
 
     return res.json({

@@ -33,6 +33,8 @@ export interface CreateBatchInput {
   slot_duration_minutes: number;
   per_slot_capacity?: number;
   batch_capacity?: number | null;
+  day_start_time?: string;
+  day_end_time?: string;
   lunch_break_start?: string;
   lunch_break_end?: string;
   slots?: BatchSlotInput[];
@@ -381,6 +383,10 @@ export async function createBatch(createdByUserId: string, input: CreateBatchInp
       slot_duration_minutes: input.slot_duration_minutes,
       per_slot_capacity: slotCapacity,
       batch_capacity: input.batch_capacity ?? null,
+      day_start_time: input.day_start_time || '09:00',
+      day_end_time: input.day_end_time || '17:00',
+      lunch_break_start: input.lunch_break_start || '13:00',
+      lunch_break_end: input.lunch_break_end || '14:00',
       public_view_token: publicViewToken,
       booking_count: 0,
       total_slots: 0,
@@ -451,6 +457,10 @@ export async function updateBatch(batchId: string, input: Partial<CreateBatchInp
   if (input.slot_duration_minutes !== undefined) updatePayload.slot_duration_minutes = input.slot_duration_minutes;
   if (input.per_slot_capacity !== undefined) updatePayload.per_slot_capacity = input.per_slot_capacity;
   if (input.batch_capacity !== undefined) updatePayload.batch_capacity = input.batch_capacity;
+  if (input.day_start_time !== undefined) updatePayload.day_start_time = input.day_start_time;
+  if (input.day_end_time !== undefined) updatePayload.day_end_time = input.day_end_time;
+  if (input.lunch_break_start !== undefined) updatePayload.lunch_break_start = input.lunch_break_start;
+  if (input.lunch_break_end !== undefined) updatePayload.lunch_break_end = input.lunch_break_end;
 
   const { data: existingBatch, error: fetchError } = await supabase
     .from('batches')

@@ -17,6 +17,8 @@ type BatchResponse = {
     slot_duration_minutes: number;
     per_slot_capacity: number;
     batch_capacity?: number | null;
+    day_start_time?: string | null;
+    day_end_time?: string | null;
     lunch_break_start?: string | null;
     lunch_break_end?: string | null;
     status: string;
@@ -122,8 +124,8 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
           slotDurationMinutes: String(data.slot_duration_minutes ?? 60),
           totalSlots: data.total_slots ? String(data.total_slots) : '',
           batchCapacity: data.batch_capacity ? String(data.batch_capacity) : '',
-          dayStartTime: '09:00',
-          dayEndTime: '17:00',
+          dayStartTime: toTimeInputValue(data.day_start_time, '09:00'),
+          dayEndTime: toTimeInputValue(data.day_end_time, '17:00'),
           lunchBreakStart: toTimeInputValue(data.lunch_break_start, '13:00'),
           lunchBreakEnd: toTimeInputValue(data.lunch_break_end, '14:00'),
         });
@@ -314,6 +316,8 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
         perSlotCapacity: perSlotCap,
         lunchBreakStart: formState.lunchBreakStart.trim() || undefined,
         lunchBreakEnd: formState.lunchBreakEnd.trim() || undefined,
+        dayStartTime: formState.dayStartTime.trim() || undefined,
+        dayEndTime: formState.dayEndTime.trim() || undefined,
         // FIX: Ensure 'null' is completely stripped to clear database constraints smoothly
         batchCapacity: formState.batchCapacity.trim() 
           ? Number(formState.batchCapacity) 
@@ -441,7 +445,7 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
             <div className="inline-flex rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-red-400">
               {isCreateMode ? 'New Batch' : 'Batch Setup'}
             </div>
-            <h1 className="text-4xl font-semibold tracking-tight text-white">
+            <h1 className="text-4xl font-semibold tracking-tight text-heading">
               {isCreateMode ? 'Set up a new batch.' : 'Edit batch details.'}
             </h1>
           </div>

@@ -3,6 +3,7 @@
  */
 import { supabase } from './index';
 import pino from 'pino';
+import { randomUUID } from 'crypto';
 
 const logger = pino();
 
@@ -32,6 +33,10 @@ export interface CreateBatchInput {
   slot_duration_minutes: number;
   per_slot_capacity?: number;
   batch_capacity?: number | null;
+  day_start_time?: string;
+  day_end_time?: string;
+  lunch_break_start?: string;
+  lunch_break_end?: string;
   slots?: BatchSlotInput[];
 }
 
@@ -91,6 +96,39 @@ export async function getBatchById(batchId: string) {
   if (error) {
     logger.error(error, 'Error fetching batch');
     throw new ApiError(500, 'DB_ERROR', 'Failed to fetch batch');
+  }
+
+  // Auto-close published batches that are past their end date.
+  try {
+    if (data && data.status === 'published' && data.date_range_end) {
+      const now = new Date();
+      const end = new Date(data.date_range_end);
+      if (!isNaN(end.getTime()) && now > end) {
+        try {
+          await closeBatch(batchId);
+          const { data: refreshed, error: refreshError } = await supabase
+            .from('batches')
+            .select(
+              `
+      *,
+      created_by_user:users(id, email, first_name, last_name, role),
+      venue:venues(*),
+      slots:slots(*)
+    `
+            )
+            .eq('id', batchId)
+            .single();
+
+          if (!refreshError && refreshed) {
+            return refreshed;
+          }
+        } catch (err) {
+          logger.error(err, 'Error auto-closing batch');
+        }
+      }
+    }
+  } catch (err) {
+    logger.error(err, 'Error checking batch auto-close');
   }
 
   return data;
@@ -240,6 +278,8 @@ export async function listBatches(status?: string) {
  * Create a batch and optionally seed slots in the same call.
  */
 export async function createBatch(createdByUserId: string, input: CreateBatchInput) {
+  const slotCapacity = input.per_slot_capacity ?? 1;
+  const publicViewToken = randomUUID().replace(/-/g, '');
   const { data: batch, error: batchError } = await supabase
     .from('batches')
     .insert({
@@ -247,12 +287,17 @@ export async function createBatch(createdByUserId: string, input: CreateBatchInp
       description: input.description || null,
       created_by_user_id: createdByUserId,
       status: 'draft',
-      venue_id: input.venue_id || null,
+      venue_id: input.venue_id ?? null,
       date_range_start: input.date_range_start,
       date_range_end: input.date_range_end,
       slot_duration_minutes: input.slot_duration_minutes,
-      per_slot_capacity: input.per_slot_capacity || 1,
+      per_slot_capacity: slotCapacity,
       batch_capacity: input.batch_capacity ?? null,
+      day_start_time: input.day_start_time || '09:00',
+      day_end_time: input.day_end_time || '17:00',
+      lunch_break_start: input.lunch_break_start || '13:00',
+      lunch_break_end: input.lunch_break_end || '14:00',
+      public_view_token: publicViewToken,
       booking_count: 0,
       total_slots: 0,
     })
@@ -269,7 +314,7 @@ export async function createBatch(createdByUserId: string, input: CreateBatchInp
       batch_id: batch.id,
       start_time: slot.start_time,
       end_time: slot.end_time,
-      capacity: slot.capacity ?? input.per_slot_capacity ?? 1,
+      capacity: slot.capacity ?? slotCapacity,
       booking_count: 0,
     }));
 
@@ -312,6 +357,10 @@ export async function updateBatch(batchId: string, input: Partial<CreateBatchInp
   if (input.slot_duration_minutes !== undefined) updatePayload.slot_duration_minutes = input.slot_duration_minutes;
   if (input.per_slot_capacity !== undefined) updatePayload.per_slot_capacity = input.per_slot_capacity;
   if (input.batch_capacity !== undefined) updatePayload.batch_capacity = input.batch_capacity;
+  if (input.day_start_time !== undefined) updatePayload.day_start_time = input.day_start_time;
+  if (input.day_end_time !== undefined) updatePayload.day_end_time = input.day_end_time;
+  if (input.lunch_break_start !== undefined) updatePayload.lunch_break_start = input.lunch_break_start;
+  if (input.lunch_break_end !== undefined) updatePayload.lunch_break_end = input.lunch_break_end;
 
   const { data: existingBatch, error: fetchError } = await supabase
     .from('batches')
@@ -380,6 +429,41 @@ export async function publishBatch(batchId: string, userId?: string) {
     previous_status: batch.status,
     new_status: 'published',
   }, userId);
+
+  return updatedBatch;
+}
+
+/**
+ * Close (archive) a published batch so no new bookings can be created.
+ */
+export async function closeBatch(batchId: string, userId?: string) {
+  const { data: batch, error: fetchError } = await supabase
+    .from('batches')
+    .select('id, status')
+    .eq('id', batchId)
+    .single();
+
+  if (fetchError || !batch) {
+    throw new ApiError(404, 'BATCH_NOT_FOUND', 'Batch not found');
+  }
+
+  if (batch.status === 'closed' || batch.status === 'archived') {
+    return batch;
+  }
+
+  const { data: updatedBatch, error: updateError } = await supabase
+    .from('batches')
+    .update({ status: 'closed' })
+    .eq('id', batchId)
+    .select()
+    .single();
+
+  if (updateError || !updatedBatch) {
+    logger.error(updateError, 'Error closing batch');
+    throw new ApiError(500, 'DB_ERROR', 'Failed to close batch');
+  }
+
+  await logAuditEvent('batch_closed', 'batch', batchId, { previous_status: batch.status, new_status: 'closed' }, userId);
 
   return updatedBatch;
 }
