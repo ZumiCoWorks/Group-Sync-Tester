@@ -163,8 +163,7 @@ export default function Dashboard() {
       setLoading(true);
       setBackendError('');
       try {
-        const params = filter === 'all' ? '' : `?status=${encodeURIComponent(filter)}`;
-        const response = await fetch(`${backendUrl}/api/batches${params}`, {
+        const response = await fetch(`${backendUrl}/api/batches`, {
           headers: { Authorization: `Bearer ${authToken}` },
         });
         const payload = (await response.json()) as DashboardResponse;
@@ -180,8 +179,9 @@ export default function Dashboard() {
         setLoading(false);
       }
     };
+
     void loadBatches();
-  }, [authToken, filter]);
+  }, [authToken]);
 
   const handleSignIn = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -233,8 +233,8 @@ export default function Dashboard() {
   }, [batches]);
 
   const activeBatches = useMemo(
-    () => batches.filter((batch) => batch.status !== 'closed' && batch.status !== 'archived'),
-    [batches]
+    () => batches.filter((batch) => batch.status !== 'closed' && batch.status !== 'archived' && (filter === 'all' || batch.status === filter)),
+    [batches, filter]
   );
   const archivedBatches = useMemo(
     () => batches.filter((batch) => batch.status === 'closed' || batch.status === 'archived'),
@@ -303,7 +303,7 @@ export default function Dashboard() {
               </div>
 
               {authError && (
-                <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3.5 text-sm text-rose-200">
+                <div className="rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-sm text-rose-600 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
                   {authError}
                 </div>
               )}
@@ -350,7 +350,7 @@ export default function Dashboard() {
               <button
                 type="button"
                 onClick={handleSignOut}
-                className="rounded-2xl border border-rose-400/20 bg-rose-400/10 px-5 py-3 text-sm font-semibold text-rose-200 transition hover:bg-rose-400/15"
+                className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3 text-sm font-semibold text-rose-600 transition hover:bg-rose-100 dark:border-rose-400/20 dark:bg-rose-400/10 dark:text-rose-200 dark:hover:bg-rose-400/15"
               >
                 Sign out
               </button>
@@ -423,7 +423,7 @@ export default function Dashboard() {
             {loading ? (
               <div className="text-sm text-body">Loading your batches...</div>
             ) : backendError ? (
-              <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-5 text-sm text-rose-200">
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-600 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
                 {backendError}
               </div>
             ) : section === 'active' ? (

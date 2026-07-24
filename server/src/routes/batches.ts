@@ -436,6 +436,7 @@ router.post('/', verifyToken, requireRole(['staff', 'lecturer', 'admin']), async
       data: batch,
     });
   } catch (error) {
+    logger.error(error, 'Error in POST /api/batches');
     if (error instanceof ApiError) {
       return res.status(error.statusCode).json({
         success: false,

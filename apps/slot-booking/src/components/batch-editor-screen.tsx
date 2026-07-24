@@ -89,6 +89,7 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
   const [closing, setClosing] = useState(false);
   const [copiedBookingLink, setCopiedBookingLink] = useState(false);
   const [copiedLecturerRosterLink, setCopiedLecturerRosterLink] = useState(false);
+  const [hasBreak, setHasBreak] = useState(true);
   const [formState, setFormState] = useState<BatchFormState>(emptyFormState());
   const [batchSummary, setBatchSummary] = useState<{
     status?: string;
@@ -159,7 +160,8 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
     dayStart = '09:00',
     dayEnd = '17:00',
     lunchStart = '13:00',
-    lunchEnd = '14:00'
+    lunchEnd = '14:00',
+    totalSlotsWanted = 0
   ) {
     if (slotDurationMinutes <= 0) return [];
 
@@ -179,9 +181,9 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
     };
 
     const dayStartMinutes = parseMinutes(dayStart, 9 * 60);
-    const dayEndMinutes = parseMinutes(dayEnd, 17 * 60);
-    const lunchStartMinutes = parseMinutes(lunchStart, 13 * 60);
-    const lunchEndMinutes = parseMinutes(lunchEnd, 14 * 60);
+    const dayEndMinutes = totalSlotsWanted > 0 ? 23 * 60 + 59 : parseMinutes(dayEnd, 17 * 60);
+    const lunchStartMinutes = lunchStart ? parseMinutes(lunchStart, 13 * 60) : 0;
+    const lunchEndMinutes = lunchEnd ? parseMinutes(lunchEnd, 14 * 60) : 0;
 
     const toUtcDate = (dateStr: string, minutesSinceMidnight: number) => {
       const hh = Math.floor(minutesSinceMidnight / 60).toString().padStart(2, '0');
@@ -211,6 +213,7 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
       let cursor = new Date(window.start);
 
       while (cursor.getTime() + slotDurationMs <= window.end.getTime()) {
+        if (totalSlotsWanted > 0 && generated.length >= totalSlotsWanted) break;
         const slotEnd = new Date(cursor.getTime() + slotDurationMs);
         generated.push({
           start_time: cursor.toISOString(),
@@ -219,6 +222,7 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
         });
         cursor = slotEnd;
       }
+      if (totalSlotsWanted > 0 && generated.length >= totalSlotsWanted) break;
     }
 
     return generated;
@@ -238,7 +242,8 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
       formState.dayStartTime,
       formState.dayEndTime,
       formState.lunchBreakStart,
-      formState.lunchBreakEnd
+      formState.lunchBreakEnd,
+      totalSlotsInput
     );
     return slots.length;
   }, [formState.dateRangeStart, formState.dateRangeEnd, formState.totalSlots, formState.dayStartTime, formState.dayEndTime, formState.lunchBreakStart, formState.lunchBreakEnd]);
@@ -293,13 +298,14 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
             formState.dayStartTime,
             formState.dayEndTime,
             formState.lunchBreakStart,
-            formState.lunchBreakEnd
+            formState.lunchBreakEnd,
+            totalSlotsInput
           )
         : [];
 
       if (totalSlotsInput > 0 && generatedSlots.length !== totalSlotsInput) {
         setSaveError(
-          `Requested ${totalSlotsInput} slots, but the selected hours only produce ${generatedSlots.length}. Adjust the day or lunch times before publishing.`
+          `Requested ${totalSlotsInput} slots, but the date range only fits ${generatedSlots.length} slots. Extend the end date to fit more.`
         );
         return;
       }
@@ -489,9 +495,9 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
               </div>
             </div>
           )}
-          {batchError && <div className="mt-4 rounded-xl bg-rose-500/10 border border-rose-500/20 p-4 text-sm text-rose-200">{batchError}</div>}
-          {saveError && <div className="mt-4 rounded-xl bg-rose-500/10 border border-rose-500/20 p-4 text-sm text-rose-200">{saveError}</div>}
-          {saveSuccess && <div className="mt-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-4 text-sm text-emerald-200">{saveSuccess}</div>}
+          {batchError && <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-200">{batchError}</div>}
+          {saveError && <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-200">{saveError}</div>}
+          {saveSuccess && <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-600 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-200">{saveSuccess}</div>}
 
                 <div className="rounded-2xl border border-muted bg-white p-4 shadow-sm dark:bg-white/5">
                   <p className="font-semibold text-heading">Lecturer roster link</p>
@@ -593,36 +599,65 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
                     className="block w-full rounded-2xl border border-muted bg-white px-4 py-3 text-heading outline-none dark:bg-secondary"
                   />
                 </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-heading">Day End Time</label>
-                  <input
-                    type="time"
-                    value={formState.dayEndTime}
-                    onChange={handleChange('dayEndTime')}
-                    className="block w-full rounded-2xl border border-muted bg-white px-4 py-3 text-heading outline-none dark:bg-secondary"
-                  />
-                </div>
+                {!formState.totalSlots && (
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-heading">Day End Time</label>
+                    <input
+                      type="time"
+                      value={formState.dayEndTime}
+                      onChange={handleChange('dayEndTime')}
+                      className="block w-full rounded-2xl border border-muted bg-white px-4 py-3 text-heading outline-none dark:bg-secondary"
+                    />
+                  </div>
+                )}
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-heading">Lunch Start</label>
-                  <input
-                    type="time"
-                    value={formState.lunchBreakStart}
-                    onChange={handleChange('lunchBreakStart')}
-                    className="block w-full rounded-2xl border border-muted bg-white px-4 py-3 text-heading outline-none dark:bg-secondary"
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-heading">Lunch End</label>
-                  <input
-                    type="time"
-                    value={formState.lunchBreakEnd}
-                    onChange={handleChange('lunchBreakEnd')}
-                    className="block w-full rounded-2xl border border-muted bg-white px-4 py-3 text-heading outline-none dark:bg-secondary"
-                  />
-                </div>
+              <div className="pt-2">
+                {!hasBreak ? (
+                  <button
+                    type="button"
+                    onClick={() => setHasBreak(true)}
+                    className="text-sm font-medium text-blue-600 hover:text-blue-500"
+                  >
+                    + Add a break (e.g., Lunch)
+                  </button>
+                ) : (
+                  <div className="space-y-4 rounded-xl border border-muted bg-white/50 p-4 dark:bg-white/5">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-medium text-heading">Break Time</h4>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setHasBreak(false);
+                          setFormState(prev => ({ ...prev, lunchBreakStart: '', lunchBreakEnd: '' }));
+                        }}
+                        className="text-xs text-rose-500 hover:text-rose-400"
+                      >
+                        Remove Break
+                      </button>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-2 block text-xs font-medium text-body">Break Start</label>
+                        <input
+                          type="time"
+                          value={formState.lunchBreakStart}
+                          onChange={handleChange('lunchBreakStart')}
+                          className="block w-full rounded-2xl border border-muted bg-white px-4 py-3 text-heading outline-none dark:bg-secondary"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-2 block text-xs font-medium text-body">Break End</label>
+                        <input
+                          type="time"
+                          value={formState.lunchBreakEnd}
+                          onChange={handleChange('lunchBreakEnd')}
+                          className="block w-full rounded-2xl border border-muted bg-white px-4 py-3 text-heading outline-none dark:bg-secondary"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2 pt-4">
