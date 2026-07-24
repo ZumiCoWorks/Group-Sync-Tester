@@ -448,7 +448,7 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
 
         <section className="rounded-3xl border border-muted bg-white/85 p-6 shadow-xl backdrop-blur-xl sm:p-8 dark:bg-secondary/80">
           <div className="space-y-3">
-            <div className="inline-flex rounded-full border border-accent-creative/20 bg-accent-creative/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-accent-creative">
+            <div className="inline-flex rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-red-400">
               {isCreateMode ? 'New Batch' : 'Batch Setup'}
             </div>
             <h1 className="text-4xl font-semibold tracking-tight text-heading">
@@ -471,7 +471,7 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
                   <button
                     type="button"
                     onClick={() => router.push(`/editor/${batchId}/bookings`)}
-                    className="rounded-xl border border-muted bg-white px-4 py-2 text-sm font-semibold text-body transition hover:bg-secondary dark:bg-transparent dark:hover:bg-secondary"
+                    className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-100 dark:border-white/10 dark:bg-white/5 dark:text-red-100 dark:hover:bg-white/10"
                   >
                     Attendance
                   </button>
@@ -479,7 +479,7 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
                     type="button"
                     onClick={() => window.open(bookingLink, '_blank', 'noopener,noreferrer')}
                     disabled={!canSharePublicLinks}
-                    className="rounded-xl bg-accent-creative px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 shadow-sm"
+                    className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-500 shadow-sm"
                   >
                     Open booking page
                   </button>
@@ -487,7 +487,7 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
                     type="button"
                     onClick={() => void copyBookingLink()}
                     disabled={!canSharePublicLinks}
-                    className="rounded-xl border border-muted bg-white px-4 py-2 text-sm font-semibold text-body transition hover:bg-secondary dark:bg-transparent dark:hover:bg-secondary"
+                    className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-100 dark:border-white/10 dark:bg-white/5 dark:text-red-100 dark:hover:bg-white/10"
                   >
                     {copiedBookingLink ? 'Link copied' : 'Copy link'}
                   </button>
@@ -495,8 +495,8 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
               </div>
             </div>
           )}
-          {batchError && <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-200">{batchError}</div>}
-          {saveError && <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-200">{saveError}</div>}
+          {batchError && <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-200">{batchError}</div>}
+          {saveError && <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-200">{saveError}</div>}
           {saveSuccess && <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-600 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-200">{saveSuccess}</div>}
 
                 <div className="rounded-2xl border border-muted bg-white p-4 shadow-sm dark:bg-white/5">
@@ -510,7 +510,7 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
                       type="button"
                       onClick={() => window.open(lecturerRosterLink, '_blank', 'noopener,noreferrer')}
                       disabled={!canSharePublicLinks || !lecturerRosterLink}
-                      className="rounded-xl bg-accent-creative px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
+                      className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-500 shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       Open lecturer view
                     </button>
@@ -518,7 +518,7 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
                       type="button"
                       onClick={() => void copyLecturerRosterLink()}
                       disabled={!canSharePublicLinks || !lecturerRosterLink}
-                      className="rounded-xl border border-muted bg-white px-4 py-2 text-sm font-semibold text-body transition hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40 dark:bg-transparent dark:hover:bg-secondary"
+                      className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/10 dark:bg-white/5 dark:text-red-100 dark:hover:bg-white/10"
                     >
                       {copiedLecturerRosterLink ? 'Link copied' : 'Copy lecturer link'}
                     </button>
@@ -617,7 +617,7 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
                   <button
                     type="button"
                     onClick={() => setHasBreak(true)}
-                    className="text-sm font-medium text-accent-business hover:opacity-80"
+                    className="text-sm font-medium text-blue-600 hover:text-blue-500"
                   >
                     + Add a break (e.g., Lunch)
                   </button>
@@ -631,7 +631,7 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
                           setHasBreak(false);
                           setFormState(prev => ({ ...prev, lunchBreakStart: '', lunchBreakEnd: '' }));
                         }}
-                        className="text-xs text-red-500 hover:text-red-400"
+                        className="text-xs text-rose-500 hover:text-rose-400"
                       >
                         Remove Break
                       </button>
@@ -713,7 +713,7 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
                     type="button"
                     onClick={handlePublish}
                     disabled={publishing}
-                      className="rounded-xl bg-accent-creative px-6 py-3 text-sm font-semibold text-white hover:opacity-95 transition"
+                      className="rounded-xl bg-red-600 px-6 py-3 text-sm font-semibold text-white hover:opacity-95 transition"
                   >
                     {publishing ? 'Publishing…' : 'Publish and open bookings'}
                   </button>
@@ -723,7 +723,7 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
                     type="button"
                     onClick={handleClose}
                     disabled={closing}
-                      className="rounded-xl border border-red-200 bg-red-50 px-6 py-3 text-sm font-semibold text-red-600 hover:bg-red-100 transition dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-200 dark:hover:bg-red-500/20"
+                      className="rounded-xl bg-rose-600 px-6 py-3 text-sm font-semibold text-white hover:opacity-95 transition"
                   >
                     {closing ? 'Closing…' : 'Close bookings'}
                   </button>

@@ -61,14 +61,14 @@ function BatchCard({
   const percent = seatsTotal > 0 ? Math.round((booked / seatsTotal) * 100) : 0;
 
   return (
-    <article className="rounded-2xl border border-muted bg-secondary p-5 shadow-sm">
+    <article className="rounded-2xl border border-white/10 bg-white/5 p-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h3 className="text-xl font-semibold text-heading">{batch.title}</h3>
-          <p className="mt-2 text-sm text-body">
-            Bookings: <span className="font-semibold text-heading">{booked}</span> /{' '}
-            <span className="font-semibold text-heading">{seatsTotal}</span> seats ({percent}%) • Slots:{' '}
-            <span className="font-medium text-heading">{batch.total_slots}</span>
+          <h3 className="text-xl font-semibold text-white">{batch.title}</h3>
+          <p className="mt-2 text-sm text-slate-300">
+            Bookings: <span className="font-semibold text-white">{booked}</span> /{' '}
+            <span className="font-semibold text-white">{seatsTotal}</span> seats ({percent}%) • Slots:{' '}
+            <span className="font-medium text-white">{batch.total_slots}</span>
           </p>
           <span
             className={`inline-block mt-2 rounded-full px-3 py-0.5 text-xs font-medium ring-1 ${statusStyles[batch.status]}`}
@@ -81,14 +81,14 @@ function BatchCard({
           <button
             type="button"
             onClick={() => onEdit(batch.id)}
-            className="rounded-xl bg-accent-creative px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+            className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-500"
           >
             Edit
           </button>
           <button
             type="button"
             onClick={() => onOpenAttendance(batch.id)}
-            className="rounded-xl border border-accent-creative bg-accent-creative/10 px-4 py-2 text-sm font-semibold text-accent-creative transition hover:bg-accent-creative/20"
+            className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-200 transition hover:bg-red-500/15"
           >
             Attendance
           </button>
@@ -96,7 +96,7 @@ function BatchCard({
             type="button"
             onClick={() => window.open(bookingLink, '_blank', 'noopener,noreferrer')}
             disabled={!canShare}
-            className="rounded-xl border border-muted bg-secondary px-4 py-2 text-sm font-semibold text-body transition hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Open booking page
           </button>
@@ -104,13 +104,13 @@ function BatchCard({
             type="button"
             onClick={() => onCopyBookingLink(batch.id)}
             disabled={!canShare}
-            className="rounded-xl border border-accent-creative bg-accent-creative/10 px-4 py-2 text-sm font-semibold text-accent-creative transition hover:bg-accent-creative/20 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-100 transition hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {copiedBatchId === batch.id ? 'Link copied' : 'Copy link'}
           </button>
         </div>
       </div>
-      <p className="mt-3 text-xs text-body">
+      <p className="mt-3 text-xs text-slate-400">
         {canShare
           ? `Shareable booking URL: ${bookingLink}`
           : 'Publish this batch before sharing the student link.'}
@@ -265,7 +265,7 @@ export default function Dashboard() {
         <div className="relative mx-auto flex min-h-[calc(100vh-4rem)] max-w-md items-center justify-center">
           <section className="w-full rounded-2xl border border-muted bg-white p-6 shadow-sm backdrop-blur-xl sm:p-8">
             <div className="space-y-2 text-center">
-              <div className="inline-flex rounded-full border border-accent-creative/20 bg-accent-creative/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-accent-creative">
+              <div className="inline-flex rounded-full border border-red-500/20 bg-red-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-red-300">
                 AFDA Collaborative Works
               </div>
               <h1 className="text-3xl font-semibold tracking-tight text-heading">Staff Login</h1>
@@ -311,7 +311,7 @@ export default function Dashboard() {
               <button
                 type="submit"
                 disabled={authSubmitting}
-                className="w-full rounded-xl bg-accent-creative py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:bg-muted disabled:text-body"
+                className="w-full rounded-xl bg-red-600 py-3 text-sm font-semibold text-white transition hover:bg-red-500 disabled:bg-slate-700"
               >
                 {authSubmitting ? 'Authenticating session…' : 'Sign In'}
               </button>
@@ -328,7 +328,7 @@ export default function Dashboard() {
         <section className="rounded-3xl border border-muted bg-white p-6 shadow-sm backdrop-blur-xl sm:p-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="space-y-3">
-              <div className="inline-flex rounded-full border border-accent-creative/20 bg-accent-creative/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-accent-creative">
+              <div className="inline-flex rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-red-300">
                 Staff dashboard
               </div>
               <h1 className="text-4xl font-semibold tracking-tight text-heading sm:text-5xl">
@@ -343,14 +343,14 @@ export default function Dashboard() {
               <button
                 type="button"
                 onClick={() => router.push('/editor/new')}
-                className="rounded-2xl bg-accent-creative px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
+                className="rounded-2xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-500"
               >
                 + New Batch
               </button>
               <button
                 type="button"
                 onClick={handleSignOut}
-                className="rounded-2xl border border-muted bg-white px-5 py-3 text-sm font-semibold text-body transition hover:bg-secondary dark:bg-transparent dark:hover:bg-secondary"
+                className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3 text-sm font-semibold text-rose-600 transition hover:bg-rose-100 dark:border-rose-400/20 dark:bg-rose-400/10 dark:text-rose-200 dark:hover:bg-rose-400/15"
               >
                 Sign out
               </button>
@@ -408,7 +408,7 @@ export default function Dashboard() {
                     onClick={() => setFilter(status as typeof filter)}
                     className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
                       filter === status
-                        ? 'bg-accent-creative text-white'
+                        ? 'bg-red-600 text-white'
                         : 'border border-muted bg-white text-body'
                     }`}
                   >
@@ -470,7 +470,7 @@ export default function Dashboard() {
                         <button
                           type="button"
                           onClick={() => router.push(`/editor/${batch.id}/bookings`)}
-                          className="rounded-xl border border-accent-creative/30 bg-accent-creative/10 px-4 py-2 text-sm font-semibold text-accent-creative transition hover:bg-accent-creative/20"
+                          className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-200 transition hover:bg-red-500/15"
                         >
                           View roster
                         </button>
