@@ -1,4 +1,30 @@
-import { SyncGroup, SyncParticipant, SyncGroupMember } from '@afda/shared/types';
+// import { SyncGroup, SyncParticipant, SyncGroupMember } from '@afda/shared/types';
+
+export interface SyncGroupMember {
+  name: string;
+  avatar: string;
+  discipline?: string | null;
+  student_number?: string | null;
+  current_placement?: string | null;
+  performance?: string | null;
+}
+
+export interface SyncGroup {
+  id: string;
+  members: SyncGroupMember[];
+}
+
+export interface SyncParticipant {
+  id: string;
+  session_id: string;
+  name: string;
+  avatar: string;
+  discipline?: string | null;
+  student_number?: string | null;
+  current_placement?: string | null;
+  performance?: string | null;
+  joined_at: string;
+}
 
 export interface GroupingOptions {
   groupCount: number;

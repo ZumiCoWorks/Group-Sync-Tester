@@ -1,5 +1,4 @@
-import { generateGroups } from './grouping-algo';
-import { SyncParticipant } from '@afda/shared/types';
+import { generateGroups, SyncParticipant } from './grouping-algo';
 
 describe('grouping-algo', () => {
   beforeEach(() => {
