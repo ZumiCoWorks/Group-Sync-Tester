@@ -103,6 +103,7 @@ export async function getBatchById(batchId: string) {
     if (data && data.status === 'published' && data.date_range_end) {
       const now = new Date();
       const end = new Date(data.date_range_end);
+      end.setUTCHours(23, 59, 59, 999);
       if (!isNaN(end.getTime()) && now > end) {
         // Close the batch so no new bookings can be created.
         // Use closeBatch which logs an audit event; ignore errors so fetch still returns something.
@@ -128,6 +129,7 @@ export async function getBatchById(batchId: string) {
         } catch (err) {
           // swallow: we'll return the original data if closing failed
           logger.error(err, 'Error auto-closing batch');
+        }
         }
       }
     }
@@ -305,6 +307,8 @@ function generateSlotsWithLunchBreak(
   dateRangeEnd: string,
   slotDurationMinutes: number,
   capacity: number,
+  dayStart = DEFAULT_DAY_START,
+  dayEnd = DEFAULT_DAY_END,
   lunchStart = DEFAULT_LUNCH_START,
   lunchEnd = DEFAULT_LUNCH_END
 ) {
@@ -325,10 +329,10 @@ function generateSlotsWithLunchBreak(
   const normalizedLunchEndMinutes = Number.isFinite(lunchEndMinutes) ? lunchEndMinutes : parseTimeToMinutes(DEFAULT_LUNCH_END);
 
   for (let currentDate = new Date(startDate); currentDate <= endDate; currentDate.setDate(currentDate.getDate() + 1)) {
-    let cursor = setTimeOnDate(currentDate, DEFAULT_DAY_START);
-    const dayEnd = setTimeOnDate(currentDate, DEFAULT_DAY_END);
+    let cursor = setTimeOnDate(currentDate, dayStart);
+    const dailyEnd = setTimeOnDate(currentDate, dayEnd);
 
-    while (cursor < dayEnd) {
+    while (cursor < dailyEnd) {
       const cursorMinutes = cursor.getHours() * 60 + cursor.getMinutes();
 
       if (cursorMinutes >= normalizedLunchStartMinutes && cursorMinutes < normalizedLunchEndMinutes) {
@@ -345,7 +349,7 @@ function generateSlotsWithLunchBreak(
         continue;
       }
 
-      if (slotEnd > dayEnd) {
+      if (slotEnd > dailyEnd) {
         break;
       }
 
@@ -413,6 +417,8 @@ export async function createBatch(createdByUserId: string, input: CreateBatchInp
         input.date_range_end,
         input.slot_duration_minutes,
         slotCapacity,
+        input.day_start_time,
+        input.day_end_time,
         input.lunch_break_start,
         input.lunch_break_end
       );

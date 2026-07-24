@@ -434,7 +434,7 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
           <button
             type="button"
             onClick={() => router.push('/')}
-            className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/10"
+            className="rounded-2xl border border-border bg-black/5 px-4 py-2 text-sm font-medium text-slate-800 transition hover:bg-black/10 dark:border-white/10 dark:bg-white/5 dark:text-slate-200 dark:hover:bg-white/10"
           >
             Back to dashboard
           </button>
@@ -465,7 +465,7 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
                   <button
                     type="button"
                     onClick={() => router.push(`/editor/${batchId}/bookings`)}
-                    className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-red-100 transition hover:bg-white/10"
+                    className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-100 dark:border-white/10 dark:bg-white/5 dark:text-red-100 dark:hover:bg-white/10"
                   >
                     Attendance
                   </button>
@@ -473,7 +473,7 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
                     type="button"
                     onClick={() => window.open(bookingLink, '_blank', 'noopener,noreferrer')}
                     disabled={!canSharePublicLinks}
-                    className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-500"
+                    className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-500 shadow-sm"
                   >
                     Open booking page
                   </button>
@@ -481,7 +481,7 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
                     type="button"
                     onClick={() => void copyBookingLink()}
                     disabled={!canSharePublicLinks}
-                    className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-red-100 transition hover:bg-white/10"
+                    className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-100 dark:border-white/10 dark:bg-white/5 dark:text-red-100 dark:hover:bg-white/10"
                   >
                     {copiedBookingLink ? 'Link copied' : 'Copy link'}
                   </button>
@@ -504,7 +504,7 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
                       type="button"
                       onClick={() => window.open(lecturerRosterLink, '_blank', 'noopener,noreferrer')}
                       disabled={!canSharePublicLinks || !lecturerRosterLink}
-                      className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-40"
+                      className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-500 shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       Open lecturer view
                     </button>
@@ -512,7 +512,7 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
                       type="button"
                       onClick={() => void copyLecturerRosterLink()}
                       disabled={!canSharePublicLinks || !lecturerRosterLink}
-                      className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-red-100 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                      className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/10 dark:bg-white/5 dark:text-red-100 dark:hover:bg-white/10"
                     >
                       {copiedLecturerRosterLink ? 'Link copied' : 'Copy lecturer link'}
                     </button>

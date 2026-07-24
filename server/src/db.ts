@@ -103,6 +103,7 @@ export async function getBatchById(batchId: string) {
     if (data && data.status === 'published' && data.date_range_end) {
       const now = new Date();
       const end = new Date(data.date_range_end);
+      end.setUTCHours(23, 59, 59, 999);
       if (!isNaN(end.getTime()) && now > end) {
         try {
           await closeBatch(batchId);
