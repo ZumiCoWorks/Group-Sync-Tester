@@ -1,6 +1,8 @@
 import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
-import { logger } from './logger';
+import pino from 'pino';
+
+const logger = pino();
 
 export interface AuthRequest extends Request {
   user?: {
