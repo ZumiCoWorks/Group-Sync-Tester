@@ -31,30 +31,8 @@ export const verifyToken = (req: AuthRequest, res: Response, next: NextFunction)
   }
 
   try {
-    const secret = process.env.SUPABASE_JWT_SECRET || '';
-    let decoded: any;
-    try {
-      // First try to verify with the secret as a raw string
-      decoded = jwt.verify(token, secret);
-    } catch (rawErr) {
-      // If that fails, try decoding it as base64 (common for older Supabase projects)
-      try {
-        const secretKey = Buffer.from(secret, 'base64');
-        decoded = jwt.verify(token, secretKey);
-      } catch (base64Err) {
-        throw new Error('Token verification failed with both raw and base64 secret');
-      }
-    }
-    
-    req.user = {
-      id: decoded.sub || decoded.id,
-      email: decoded.email,
-      // Default to 'staff' if 'authenticated' for prototype purposes so requireRole passes
-      role: (decoded.user_metadata?.role) || (decoded.role === 'authenticated' ? 'staff' : decoded.role),
-      iat: decoded.iat,
-      exp: decoded.exp
-    };
-    
+    const decoded = jwt.verify(token, process.env.SUPABASE_JWT_SECRET || '');
+    req.user = decoded as AuthRequest['user'];
     next();
   } catch (err) {
     logger.error(err, 'Token verification failed');
