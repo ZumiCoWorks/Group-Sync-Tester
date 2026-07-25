@@ -1,4 +1,30 @@
-import { SyncGroup, SyncParticipant, SyncGroupMember } from '@afda/shared/types';
+// import { SyncGroup, SyncParticipant, SyncGroupMember } from '@afda/shared/types';
+
+export interface SyncGroupMember {
+  name: string;
+  avatar: string;
+  discipline?: string | null;
+  student_number?: string | null;
+  current_placement?: string | null;
+  performance?: string | null;
+}
+
+export interface SyncGroup {
+  id: string;
+  members: SyncGroupMember[];
+}
+
+export interface SyncParticipant {
+  id: string;
+  session_id: string;
+  name: string;
+  avatar: string;
+  discipline?: string | null;
+  student_number?: string | null;
+  current_placement?: string | null;
+  performance?: string | null;
+  joined_at: string;
+}
 
 export interface GroupingOptions {
   groupCount: number;
@@ -43,7 +69,8 @@ export function generateGroups(
           avatar: p.avatar,
           discipline: p.discipline,
           student_number: p.student_number,
-          current_placement: p.current_placement
+          current_placement: p.current_placement,
+          performance: p.performance
         }))
       }
     ];
@@ -112,7 +139,8 @@ export function generateGroups(
           avatar: selected.avatar,
           discipline: selected.discipline,
           student_number: selected.student_number,
-          current_placement: selected.current_placement
+          current_placement: selected.current_placement,
+          performance: selected.performance
         });
 
         seededParticipantIds.add(selected.id);
@@ -191,6 +219,14 @@ export function generateGroups(
         score += sameDisciplineCount * 100; // Small penalty per matching discipline
       }
 
+      // 4. Performance balance penalty: try to distribute performance ratings ('good', 'bad') evenly
+      if (participant.performance) {
+        const samePerformanceCount = group.members.filter(
+          (m: SyncGroupMember) => m.performance === participant.performance
+        ).length;
+        score += samePerformanceCount * 2000; // Large penalty to enforce even distribution
+      }
+
       if (score < lowestScore) {
         lowestScore = score;
         bestGroupIndex = idx;
@@ -208,7 +244,8 @@ export function generateGroups(
       avatar: participant.avatar,
       discipline: participant.discipline,
       student_number: participant.student_number,
-      current_placement: participant.current_placement
+      current_placement: participant.current_placement,
+      performance: participant.performance
     });
   });
 
