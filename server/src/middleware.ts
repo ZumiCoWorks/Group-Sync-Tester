@@ -1,55 +1,52 @@
-import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import pino from 'pino';
-
-const logger = pino();
+import { Request, Response, NextFunction } from 'express';
+import { logger } from './logger';
 
 export interface AuthRequest extends Request {
   user?: {
     id: string;
-    email: string;
+    email?: string;
     role: string;
-    iat: number;
-    exp: number;
+    [key: string]: any;
   };
 }
 
-/**
- * Middleware: Verify JWT token from Authorization header
- */
 export const verifyToken = (req: AuthRequest, res: Response, next: NextFunction) => {
-  const token = req.headers.authorization?.split(' ')[1];
-
-  if (!token) {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({
       success: false,
       error: {
         code: 'MISSING_TOKEN',
-        message: 'Authorization token is required',
+        message: 'Authorization header with Bearer token is required',
+      },
+    });
+  }
+
+  const token = authHeader.split(' ')[1];
+  
+  if (!token) {
+    return res.status(401).json({
+      success: false,
+      error: {
+        code: 'INVALID_TOKEN',
+        message: 'Authorization token is missing',
       },
     });
   }
 
   try {
     const secret = process.env.SUPABASE_JWT_SECRET || '';
-    let decoded: any;
-    try {
-      // First try to verify with the secret as a raw string
-      decoded = jwt.verify(token, secret);
-    } catch (rawErr) {
-      // If that fails, try decoding it as base64 (common for older Supabase projects)
-      try {
-        const secretKey = Buffer.from(secret, 'base64');
-        decoded = jwt.verify(token, secretKey);
-      } catch (base64Err) {
-        throw new Error('Token verification failed with both raw and base64 secret');
-      }
-    }
+    
+    // In b8433fd, this was exactly how it was verified. 
+    // If this fails, the token is genuinely invalid or signed with a different secret.
+    const decoded = jwt.verify(token, secret) as any;
     
     req.user = {
       id: decoded.sub || decoded.id,
       email: decoded.email,
-      // Default to 'staff' if 'authenticated' for prototype purposes so requireRole passes
+      // Map 'authenticated' to 'staff' to satisfy role requirements for prototyping
       role: (decoded.user_metadata?.role) || (decoded.role === 'authenticated' ? 'staff' : decoded.role),
       iat: decoded.iat,
       exp: decoded.exp
@@ -68,12 +65,11 @@ export const verifyToken = (req: AuthRequest, res: Response, next: NextFunction)
   }
 };
 
-/**
- * Middleware: Check user role
- */
 export const requireRole = (allowedRoles: string[]) => {
-  return (req: AuthRequest, res: Response, next: NextFunction) => {
-    if (!req.user) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const authReq = req as AuthRequest;
+    
+    if (!authReq.user) {
       return res.status(401).json({
         success: false,
         error: {
@@ -83,7 +79,7 @@ export const requireRole = (allowedRoles: string[]) => {
       });
     }
 
-    if (!allowedRoles.includes(req.user.role)) {
+    if (!allowedRoles.includes(authReq.user.role)) {
       return res.status(403).json({
         success: false,
         error: {
@@ -95,24 +91,4 @@ export const requireRole = (allowedRoles: string[]) => {
 
     next();
   };
-};
-
-/**
- * Middleware: Error handler
- */
-export const errorHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
-  logger.error(err, 'Error handler caught exception');
-
-  const statusCode = err.statusCode || 500;
-  const code = err.code || 'INTERNAL_ERROR';
-  const message = err.message || 'An unexpected error occurred';
-
-  res.status(statusCode).json({
-    success: false,
-    error: {
-      code,
-      message,
-      details: process.env.NODE_ENV === 'development' ? err.stack : undefined,
-    },
-  });
 };
