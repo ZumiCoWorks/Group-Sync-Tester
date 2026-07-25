@@ -39,27 +39,35 @@ export const verifyToken = (req: AuthRequest, res: Response, next: NextFunction)
   try {
     const secret = process.env.SUPABASE_JWT_SECRET || '';
     
-    // In b8433fd, this was exactly how it was verified. 
-    // If this fails, the token is genuinely invalid or signed with a different secret.
+    // DEBUG MODE: Return a specific error if secret is missing to prove to the user
+    if (!secret) {
+      return res.status(401).json({
+        success: false,
+        error: {
+          code: 'NO_SECRET_ON_SERVER',
+          message: 'The Vercel backend is missing SUPABASE_JWT_SECRET in its environment variables.',
+        },
+      });
+    }
+
     const decoded = jwt.verify(token, secret) as any;
     
     req.user = {
       id: decoded.sub || decoded.id,
       email: decoded.email,
-      // Map 'authenticated' to 'staff' to satisfy role requirements for prototyping
       role: (decoded.user_metadata?.role) || (decoded.role === 'authenticated' ? 'staff' : decoded.role),
       iat: decoded.iat,
       exp: decoded.exp
     };
     
     next();
-  } catch (err) {
+  } catch (err: any) {
     logger.error(err, 'Token verification failed');
     return res.status(401).json({
       success: false,
       error: {
         code: 'INVALID_TOKEN',
-        message: 'Authorization token is invalid or expired',
+        message: 'Authorization token is invalid or expired: ' + err.message,
       },
     });
   }
