@@ -61,14 +61,14 @@ function BatchCard({
   const percent = seatsTotal > 0 ? Math.round((booked / seatsTotal) * 100) : 0;
 
   return (
-    <article className="rounded-2xl border border-white/10 bg-white/5 p-5">
+    <article className="rounded-2xl border border-muted bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h3 className="text-xl font-semibold text-white">{batch.title}</h3>
-          <p className="mt-2 text-sm text-slate-300">
-            Bookings: <span className="font-semibold text-white">{booked}</span> /{' '}
-            <span className="font-semibold text-white">{seatsTotal}</span> seats ({percent}%) • Slots:{' '}
-            <span className="font-medium text-white">{batch.total_slots}</span>
+          <h3 className="text-xl font-semibold text-heading">{batch.title}</h3>
+          <p className="mt-2 text-sm text-body">
+            Bookings: <span className="font-semibold text-heading">{booked}</span> /{' '}
+            <span className="font-semibold text-heading">{seatsTotal}</span> seats ({percent}%) • Slots:{' '}
+            <span className="font-medium text-heading">{batch.total_slots}</span>
           </p>
           <span
             className={`inline-block mt-2 rounded-full px-3 py-0.5 text-xs font-medium ring-1 ${statusStyles[batch.status]}`}
@@ -81,14 +81,14 @@ function BatchCard({
           <button
             type="button"
             onClick={() => onEdit(batch.id)}
-            className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-500"
+            className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-500 shadow-sm"
           >
             Edit
           </button>
           <button
             type="button"
             onClick={() => onOpenAttendance(batch.id)}
-            className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-200 transition hover:bg-red-500/15"
+            className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-100 dark:border-white/10 dark:bg-white/5 dark:text-red-100 dark:hover:bg-white/10"
           >
             Attendance
           </button>
@@ -96,7 +96,7 @@ function BatchCard({
             type="button"
             onClick={() => window.open(bookingLink, '_blank', 'noopener,noreferrer')}
             disabled={!canShare}
-            className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-xl border border-muted bg-white px-4 py-2 text-sm font-semibold text-body transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white/5 dark:text-slate-200 dark:hover:bg-white/10"
           >
             Open booking page
           </button>
@@ -104,13 +104,13 @@ function BatchCard({
             type="button"
             onClick={() => onCopyBookingLink(batch.id)}
             disabled={!canShare}
-            className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-100 transition hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/10 dark:bg-white/5 dark:text-red-100 dark:hover:bg-white/10"
           >
             {copiedBatchId === batch.id ? 'Link copied' : 'Copy link'}
           </button>
         </div>
       </div>
-      <p className="mt-3 text-xs text-slate-400">
+      <p className="mt-3 text-xs text-body opacity-80">
         {canShare
           ? `Shareable booking URL: ${bookingLink}`
           : 'Publish this batch before sharing the student link.'}
@@ -470,7 +470,7 @@ export default function Dashboard() {
                         <button
                           type="button"
                           onClick={() => router.push(`/editor/${batch.id}/bookings`)}
-                          className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-200 transition hover:bg-red-500/15"
+                          className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-100 dark:border-white/10 dark:bg-white/5 dark:text-red-100 dark:hover:bg-white/10"
                         >
                           View roster
                         </button>

@@ -36,6 +36,7 @@ type BatchFormState = {
   venueId: string;
   dateRangeStart: string;
   dateRangeEnd: string;
+  totalSlotsWanted: string;
   slotDurationMinutes: string;
   totalSlots: string;
   batchCapacity: string;
@@ -53,7 +54,8 @@ const emptyFormState = (): BatchFormState => ({
   description: '',
   venueId: '',
   dateRangeStart: '',
-  dateRangeEnd: '',
+    dateRangeEnd: '',
+    totalSlotsWanted: '',
   slotDurationMinutes: '60',
   totalSlots: '',
   batchCapacity: '',
@@ -129,6 +131,7 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
           dayEndTime: toTimeInputValue(data.day_end_time, '17:00'),
           lunchBreakStart: toTimeInputValue(data.lunch_break_start, '13:00'),
           lunchBreakEnd: toTimeInputValue(data.lunch_break_end, '14:00'),
+          totalSlotsWanted: '',
         });
         setBatchSummary({
           status: data.status,
@@ -161,15 +164,19 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
     dayEnd = '17:00',
     lunchStart = '13:00',
     lunchEnd = '14:00',
-    totalSlotsWanted = 0
+    totalSlotsWantedStr = ''
   ) {
     if (slotDurationMinutes <= 0) return [];
 
     const startDate = new Date(startDateStr);
-    const endDate = new Date(endDateStr);
-    const days: string[] = [];
-    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-      days.push(new Date(d).toISOString().slice(0, 10));
+    let endDate = new Date(endDateStr);
+    const totalWanted = parseInt(totalSlotsWantedStr, 10);
+    const hasTotalWanted = !isNaN(totalWanted) && totalWanted > 0;
+    
+    // If they specified how many slots they want, we generate up to 365 days max to prevent infinite loops
+    if (hasTotalWanted) {
+       endDate = new Date(startDate);
+       endDate.setDate(endDate.getDate() + 365);
     }
 
     const parseMinutes = (time: string, fallback: number) => {
@@ -181,7 +188,7 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
     };
 
     const dayStartMinutes = parseMinutes(dayStart, 9 * 60);
-    const dayEndMinutes = totalSlotsWanted > 0 ? 23 * 60 + 59 : parseMinutes(dayEnd, 17 * 60);
+    const dayEndMinutes = parseMinutes(dayEnd, 17 * 60);
     const lunchStartMinutes = lunchStart ? parseMinutes(lunchStart, 13 * 60) : 0;
     const lunchEndMinutes = lunchEnd ? parseMinutes(lunchEnd, 14 * 60) : 0;
 
@@ -191,62 +198,73 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
       return new Date(`${dateStr}T${hh}:${mm}:00.000Z`);
     };
 
-    const windows: Array<{ start: Date; end: Date }> = [];
-    for (const day of days) {
-      const morningStart = toUtcDate(day, dayStartMinutes);
-      const morningEnd = toUtcDate(day, Math.min(Math.max(lunchStartMinutes, dayStartMinutes), dayEndMinutes));
+    const generated: Array<{ start_time: string; end_time: string; capacity: number }> = [];
+    const slotDurationMs = slotDurationMinutes * 60 * 1000;
+
+    const currentDay = new Date(startDate);
+    while (currentDay <= endDate) {
+      const dayStr = currentDay.toISOString().slice(0, 10);
+      
+      const windows: Array<{ start: Date; end: Date }> = [];
+      const morningStart = toUtcDate(dayStr, dayStartMinutes);
+      const morningEnd = toUtcDate(dayStr, Math.min(Math.max(lunchStartMinutes, dayStartMinutes), dayEndMinutes));
       if (morningEnd.getTime() > morningStart.getTime()) {
         windows.push({ start: morningStart, end: morningEnd });
       }
 
-      const afternoonStart = toUtcDate(day, Math.min(Math.max(lunchEndMinutes, dayStartMinutes), dayEndMinutes));
-      const afternoonEnd = toUtcDate(day, dayEndMinutes);
+      const afternoonStart = toUtcDate(dayStr, Math.min(Math.max(lunchEndMinutes, dayStartMinutes), dayEndMinutes));
+      const afternoonEnd = toUtcDate(dayStr, dayEndMinutes);
       if (afternoonEnd.getTime() > afternoonStart.getTime()) {
         windows.push({ start: afternoonStart, end: afternoonEnd });
       }
-    }
-
-    const generated: Array<{ start_time: string; end_time: string; capacity: number }> = [];
-    const slotDurationMs = slotDurationMinutes * 60 * 1000;
-
-    for (const window of windows) {
-      let cursor = new Date(window.start);
-
-      while (cursor.getTime() + slotDurationMs <= window.end.getTime()) {
-        if (totalSlotsWanted > 0 && generated.length >= totalSlotsWanted) break;
-        const slotEnd = new Date(cursor.getTime() + slotDurationMs);
-        generated.push({
-          start_time: cursor.toISOString(),
-          end_time: slotEnd.toISOString(),
-          capacity,
-        });
-        cursor = slotEnd;
+      
+      for (const window of windows) {
+        let cursor = new Date(window.start);
+        while (cursor.getTime() + slotDurationMs <= window.end.getTime()) {
+          if (hasTotalWanted && generated.length >= totalWanted) {
+             return generated;
+          }
+          const slotEnd = new Date(cursor.getTime() + slotDurationMs);
+          generated.push({
+            start_time: cursor.toISOString(),
+            end_time: slotEnd.toISOString(),
+            capacity,
+          });
+          cursor = slotEnd;
+        }
       }
-      if (totalSlotsWanted > 0 && generated.length >= totalSlotsWanted) break;
+      
+      if (hasTotalWanted && generated.length >= totalWanted) {
+         break;
+      }
+      currentDay.setDate(currentDay.getDate() + 1);
     }
+
 
     return generated;
   }
 
-  // Real-time slot count calculator so you can verify before publishing
-  const calculatedSlots = useMemo(() => {
-    if (!formState.dateRangeStart || !formState.dateRangeEnd) return null;
-    const totalSlotsInput = Number(formState.totalSlots) || 0;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const generatedSlotsPreview = useMemo(() => {
+    if (!formState.dateRangeStart) return [];
+    if (!formState.dateRangeEnd && !formState.totalSlotsWanted) return [];
+    
     const slotDuration = Number(formState.slotDurationMinutes) || 0;
-    if (totalSlotsInput <= 0 || slotDuration <= 0) return null;
-    const slots = generateSlotsPayload(
+    if (slotDuration <= 0) return [];
+    
+    return generateSlotsPayload(
       formState.dateRangeStart,
-      formState.dateRangeEnd,
+      formState.dateRangeEnd || formState.dateRangeStart,
       slotDuration,
       1,
       formState.dayStartTime,
       formState.dayEndTime,
       formState.lunchBreakStart,
       formState.lunchBreakEnd,
-      totalSlotsInput
+      formState.totalSlotsWanted
     );
-    return slots.length;
-  }, [formState.dateRangeStart, formState.dateRangeEnd, formState.totalSlots, formState.dayStartTime, formState.dayEndTime, formState.lunchBreakStart, formState.lunchBreakEnd]);
+  }, [formState.dateRangeStart, formState.dateRangeEnd, formState.totalSlotsWanted, formState.slotDurationMinutes, formState.dayStartTime, formState.dayEndTime, formState.lunchBreakStart, formState.lunchBreakEnd]);
+
 
   const bookingLink = batchId ? `${studentBookingBase}/batch/${batchId}` : '';
   const lecturerRosterLink = batchId && batchSummary?.public_view_token
@@ -288,24 +306,22 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
     try {
       const slotDuration = Number(formState.slotDurationMinutes) || 60;
       const perSlotCap = Number((document.getElementById('perSlotCapacity') as HTMLInputElement)?.value) || 1;
-      const totalSlotsInput = Number(formState.totalSlots) || 0;
-      const generatedSlots = totalSlotsInput > 0
-        ? generateSlotsPayload(
-            formState.dateRangeStart,
-            formState.dateRangeEnd,
-            slotDuration,
-            perSlotCap,
-            formState.dayStartTime,
-            formState.dayEndTime,
-            formState.lunchBreakStart,
-            formState.lunchBreakEnd,
-            totalSlotsInput
-          )
-        : [];
+      
+      const generatedSlots = generateSlotsPayload(
+        formState.dateRangeStart,
+        formState.dateRangeEnd || formState.dateRangeStart,
+        slotDuration,
+        perSlotCap,
+        formState.dayStartTime,
+        formState.dayEndTime,
+        formState.lunchBreakStart,
+        formState.lunchBreakEnd,
+        formState.totalSlotsWanted
+      );
 
-      if (totalSlotsInput > 0 && generatedSlots.length !== totalSlotsInput) {
+      if (generatedSlots.length === 0) {
         setSaveError(
-          `Requested ${totalSlotsInput} slots, but the date range only fits ${generatedSlots.length} slots. Extend the end date to fit more.`
+          `The selected time range does not fit any full slots. Please adjust dates and times.`
         );
         return;
       }
@@ -599,17 +615,15 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
                     className="block w-full rounded-2xl border border-muted bg-white px-4 py-3 text-heading outline-none dark:bg-secondary"
                   />
                 </div>
-                {!formState.totalSlots && (
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-heading">Day End Time</label>
-                    <input
-                      type="time"
-                      value={formState.dayEndTime}
-                      onChange={handleChange('dayEndTime')}
-                      className="block w-full rounded-2xl border border-muted bg-white px-4 py-3 text-heading outline-none dark:bg-secondary"
-                    />
-                  </div>
-                )}
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-heading">Day End Time</label>
+                  <input
+                    type="time"
+                    value={formState.dayEndTime}
+                    onChange={handleChange('dayEndTime')}
+                    className="block w-full rounded-2xl border border-muted bg-white px-4 py-3 text-heading outline-none dark:bg-secondary"
+                  />
+                </div>
               </div>
 
               <div className="pt-2">
@@ -662,17 +676,6 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
 
               <div className="grid gap-4 sm:grid-cols-2 pt-4">
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-heading">Number of slots</label>
-                  <input
-                    type="number"
-                    value={formState.totalSlots}
-                    onChange={handleChange('totalSlots')}
-                    min={0}
-                    placeholder="Leave empty to use duration-based generation"
-                    className="block w-full rounded-2xl border border-muted bg-white px-4 py-3 text-heading outline-none dark:bg-secondary"
-                  />
-                </div>
-                <div>
                   <label className="mb-2 block text-sm font-medium text-heading">Per-slot capacity</label>
                   <input
                     id="perSlotCapacity"
@@ -684,17 +687,7 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
                 </div>
               </div>
 
-              {calculatedSlots !== null && (
-                <div className="rounded-2xl border border-accent-creative/30 bg-accent-creative/10 p-4 text-sm text-heading">
-                  <p className="font-semibold">Calculated Slot Count</p>
-                  <p className="mt-2 text-2xl font-bold text-accent-creative">{calculatedSlots} slots</p>
-                  <p className="mt-1 text-xs text-body">
-                    {calculatedSlots === Number(formState.totalSlots)
-                      ? '✓ Matches requested slots'
-                      : `You requested ${formState.totalSlots} but your time settings produce ${calculatedSlots} slots`}
-                  </p>
-                </div>
-              )}
+
 
               <p className="text-xs text-body">
                 Any slot that would start during the lunch window will be skipped automatically.
