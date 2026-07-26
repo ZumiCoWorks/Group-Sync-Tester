@@ -63,6 +63,7 @@ router.get('/', async (req: Request, res: Response) => {
         error: {
           code: error.code,
           message: error.message,
+          details: error.details,
         },
       });
     }
@@ -108,6 +109,7 @@ router.get('/internal/:batchId', verifyToken, requireRole(['staff', 'lecturer', 
         error: {
           code: error.code,
           message: error.message,
+          details: error.details,
         },
       });
     }
@@ -170,6 +172,7 @@ router.get('/:batchId', async (req: Request, res: Response) => {
         error: {
           code: error.code,
           message: error.message,
+          details: error.details,
         },
       });
     }
@@ -221,6 +224,7 @@ router.get('/:batchId/slots', async (req: Request, res: Response) => {
         error: {
           code: error.code,
           message: error.message,
+          details: error.details,
         },
       });
     }
@@ -296,6 +300,7 @@ router.get('/:batchId/roster', async (req: Request, res: Response) => {
         error: {
           code: error.code,
           message: error.message,
+          details: error.details,
         },
       });
     }
@@ -345,6 +350,7 @@ router.get('/:batchId/bookings-public', async (req: Request, res: Response) => {
         error: {
           code: error.code,
           message: error.message,
+          details: error.details,
         },
       });
     }
@@ -448,6 +454,7 @@ router.post('/', verifyToken, requireRole(['staff', 'lecturer', 'admin']), async
         error: {
           code: error.code,
           message: error.message,
+          details: error.details,
         },
       });
     }
@@ -511,6 +518,7 @@ router.put('/:batchId', verifyToken, requireRole(['staff', 'lecturer', 'admin'])
         error: {
           code: error.code,
           message: error.message,
+          details: error.details,
         },
       });
     }
@@ -550,6 +558,7 @@ router.post('/:batchId/publish', verifyToken, requireRole(['staff', 'lecturer', 
         error: {
           code: error.code,
           message: error.message,
+          details: error.details,
         },
       });
     }
