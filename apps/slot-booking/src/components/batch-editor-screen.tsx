@@ -42,6 +42,7 @@ type BatchFormState = {
   dayEndTime: string;
   lunchBreakStart: string;
   lunchBreakEnd: string;
+  targetSlotCount: string;
 };
 
 const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://afda-api.vercel.app';
@@ -59,6 +60,7 @@ const emptyFormState = (): BatchFormState => ({
   dayEndTime: '17:00',
   lunchBreakStart: '13:00',
   lunchBreakEnd: '14:00',
+  targetSlotCount: '',
 });
 
 const toDateInputValue = (value?: string | null) => (value ? value.slice(0, 10) : '');
@@ -126,6 +128,7 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
           dayEndTime: toTimeInputValue(data.day_end_time, '17:00'),
           lunchBreakStart: toTimeInputValue(data.lunch_break_start, '13:00'),
           lunchBreakEnd: toTimeInputValue(data.lunch_break_end, '14:00'),
+          targetSlotCount: '',
           });
         setBatchSummary({
           status: data.status,
@@ -157,19 +160,17 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
     dayStart = '09:00',
     dayEnd = '17:00',
     lunchStart = '13:00',
-    lunchEnd = '14:00'
+    lunchEnd = '14:00',
+    targetSlotCount?: number
   ) {
-    if (slotDurationMinutes <= 0) return [];
-
-    const start = new Date(startDateStr);
-    const end = new Date(endDateStr);
-    if (Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) > 30) {
-      throw new Error('Batch date range cannot exceed 30 days.');
-    }
+    if (slotDurationMinutes <= 0) return { generated: [], finalEndDateStr: endDateStr };
 
     const startDate = new Date(startDateStr);
-    let endDate = new Date(endDateStr);
+    const endDate = new Date(endDateStr);
     
+    // Safety limit to prevent infinite loops
+    const MAX_DAYS = 365;
+
     const parseMinutes = (time: string, fallback: number) => {
       const [hRaw, mRaw] = time.split(':');
       const h = Number(hRaw);
@@ -193,7 +194,12 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
     const slotDurationMs = slotDurationMinutes * 60 * 1000;
 
     const currentDay = new Date(startDate);
-    while (currentDay <= endDate) {
+    let daysIterated = 0;
+
+    while (daysIterated <= MAX_DAYS) {
+      if (targetSlotCount && generated.length >= targetSlotCount) break;
+      if (!targetSlotCount && currentDay > endDate) break;
+
       const dayStr = currentDay.toISOString().slice(0, 10);
       
       const windows: Array<{ start: Date; end: Date }> = [];
@@ -212,6 +218,7 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
       for (const window of windows) {
         let cursor = new Date(window.start);
         while (cursor.getTime() + slotDurationMs <= window.end.getTime()) {
+          if (targetSlotCount && generated.length >= targetSlotCount) break;
           const slotEnd = new Date(cursor.getTime() + slotDurationMs);
           generated.push({
             start_time: cursor.toISOString(),
@@ -222,22 +229,30 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
         }
       }
       
-      currentDay.setDate(currentDay.getDate() + 1);
+      // Only advance the day if we haven't hit the target
+      if (!targetSlotCount || generated.length < targetSlotCount) {
+        currentDay.setDate(currentDay.getDate() + 1);
+        daysIterated++;
+      }
     }
 
+    const finalEndDateStr = generated.length > 0 
+      ? generated[generated.length - 1].end_time.slice(0, 10) 
+      : endDateStr;
 
-    return generated;
+    return { generated, finalEndDateStr };
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const generatedSlotsPreview = useMemo(() => {
-    if (!formState.dateRangeStart) return [];
-    if (!formState.dateRangeEnd) return [];
+  const generatedData = useMemo(() => {
+    if (!formState.dateRangeStart || !formState.dateRangeEnd) return { generated: [], finalEndDateStr: '' };
     
     const slotDuration = Number(formState.slotDurationMinutes) || 0;
-    if (slotDuration <= 0) return [];
+    if (slotDuration <= 0) return { generated: [], finalEndDateStr: '' };
     
-    return generateSlotsPayload(
+    const targetCount = Number(formState.targetSlotCount) || undefined;
+
+    const result = generateSlotsPayload(
       formState.dateRangeStart,
       formState.dateRangeEnd || formState.dateRangeStart,
       slotDuration,
@@ -245,9 +260,16 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
       formState.dayStartTime,
       formState.dayEndTime,
       formState.lunchBreakStart,
-      formState.lunchBreakEnd
+      formState.lunchBreakEnd,
+      targetCount
     );
-  }, [formState.dateRangeStart, formState.dateRangeEnd, formState.slotDurationMinutes, formState.dayStartTime, formState.dayEndTime, formState.lunchBreakStart, formState.lunchBreakEnd]);
+    
+    return result;
+  }, [formState.dateRangeStart, formState.dateRangeEnd, formState.slotDurationMinutes, formState.dayStartTime, formState.dayEndTime, formState.lunchBreakStart, formState.lunchBreakEnd, formState.targetSlotCount]);
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const generatedSlotsPreview = generatedData.generated;
+  const isEndDateExtended = formState.targetSlotCount && generatedData.finalEndDateStr !== (formState.dateRangeEnd || formState.dateRangeStart);
 
 
   const bookingLink = batchId ? `${studentBookingBase}/batch/${batchId}` : '';
@@ -291,21 +313,26 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
       const slotDuration = Number(formState.slotDurationMinutes) || 60;
       const perSlotCap = Number((document.getElementById('perSlotCapacity') as HTMLInputElement)?.value) || 1;
       
-      let generatedSlots: any[] = [];
+      const targetCount = Number(formState.targetSlotCount) || undefined;
+      let generatedSlots: Array<{ start_time: string; end_time: string; capacity: number }> = [];
+      let finalEndDateStr = formState.dateRangeEnd || formState.dateRangeStart;
       try {
-        generatedSlots = generateSlotsPayload(
-        formState.dateRangeStart,
-        formState.dateRangeEnd || formState.dateRangeStart,
-        slotDuration,
-        perSlotCap,
-        formState.dayStartTime,
-        formState.dayEndTime,
-        formState.lunchBreakStart,
-        formState.lunchBreakEnd
-      );
+        const result = generateSlotsPayload(
+          formState.dateRangeStart,
+          formState.dateRangeEnd || formState.dateRangeStart,
+          slotDuration,
+          perSlotCap,
+          formState.dayStartTime,
+          formState.dayEndTime,
+          formState.lunchBreakStart,
+          formState.lunchBreakEnd,
+          targetCount
+        );
+        generatedSlots = result.generated;
+        finalEndDateStr = result.finalEndDateStr;
 
-      } catch (err: any) {
-        setSaveError(err.message);
+      } catch (err) {
+        setSaveError(err instanceof Error ? err.message : String(err));
         setSaving(false);
         return;
       }
@@ -324,7 +351,7 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
         description: formState.description.trim() || undefined,
         venueId: formState.venueId.trim() || undefined,
         dateRangeStart: formState.dateRangeStart,
-        dateRangeEnd: formState.dateRangeEnd,
+        dateRangeEnd: finalEndDateStr,
         slotDurationMinutes: slotDuration,
         perSlotCapacity: perSlotCap,
         lunchBreakStart: formState.lunchBreakStart.trim() || undefined,
@@ -577,16 +604,31 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
                     className="block w-full rounded-2xl border border-muted bg-white px-4 py-3 text-heading outline-none dark:bg-secondary"
                     required
                   />
+                  {isEndDateExtended && (
+                    <p className="mt-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                      Automatically extending to {generatedData.finalEndDateStr} to fit {formState.targetSlotCount} slots.
+                    </p>
+                  )}
                 </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-1">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label className="mb-2 block text-sm font-medium text-heading">Slot Duration (mins)</label>
                   <input
                     type="number"
                     value={formState.slotDurationMinutes}
                     onChange={handleChange('slotDurationMinutes')}
+                    className="block w-full rounded-2xl border border-muted bg-white px-4 py-3 text-heading outline-none dark:bg-secondary"
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-heading">Target Slot Count (Optional)</label>
+                  <input
+                    type="number"
+                    value={formState.targetSlotCount}
+                    onChange={handleChange('targetSlotCount')}
+                    placeholder="e.g. 15"
                     className="block w-full rounded-2xl border border-muted bg-white px-4 py-3 text-heading outline-none dark:bg-secondary"
                   />
                 </div>
