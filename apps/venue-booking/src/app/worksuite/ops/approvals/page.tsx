@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { venueSupabase } from '../../../../../utils/supabase';
+import { venueSupabase } from '../../../../utils/supabase';
 import { useRouter } from 'next/navigation';
 
 const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
