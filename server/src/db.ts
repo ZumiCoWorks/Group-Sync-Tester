@@ -307,7 +307,7 @@ export async function createBatch(createdByUserId: string, input: CreateBatchInp
 
   if (batchError || !batch) {
     logger.error(batchError, 'Error creating batch');
-    throw new ApiError(500, 'DB_ERROR', 'Failed to create batch');
+    throw new ApiError(500, 'DB_ERROR', 'Failed to create batch', batchError || undefined);
   }
 
   if (input.slots && input.slots.length > 0) {
