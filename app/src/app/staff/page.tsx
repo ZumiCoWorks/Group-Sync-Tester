@@ -255,12 +255,12 @@ export default function Dashboard() {
   if (!authToken) {
     return (
       <div className="relative min-h-screen overflow-hidden px-4 py-8 sm:px-6 lg:px-8">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.18),_transparent_34%),radial-gradient(circle_at_bottom_right,_rgba(251,191,36,0.10),_transparent_32%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(239,68,68,0.15),_transparent_34%),radial-gradient(circle_at_bottom_right,_rgba(239,68,68,0.08),_transparent_32%)]" />
 
         <div className="relative mx-auto flex min-h-[calc(100vh-4rem)] max-w-4xl items-center justify-center">
-          <section className="w-full rounded-3xl border border-white/10 bg-slate-950/70 p-6 shadow-2xl shadow-cyan-950/30 backdrop-blur-xl sm:p-8">
+          <section className="w-full rounded-3xl border border-white/10 bg-slate-950/70 p-6 shadow-2xl shadow-red-950/30 backdrop-blur-xl sm:p-8">
             <div className="space-y-3">
-              <div className="inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">
+              <div className="inline-flex rounded-full border border-red-600/20 bg-red-600/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-red-200">
                 Staff access
               </div>
               <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">
@@ -282,7 +282,7 @@ export default function Dashboard() {
                   value={tokenInput}
                   onChange={(event) => setTokenInput(event.target.value)}
                   placeholder="Paste JWT here"
-                  className="min-h-[180px] w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-cyan-400/60 focus:ring-4 focus:ring-cyan-400/10"
+                  className="min-h-[180px] w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-red-600/60 focus:ring-4 focus:ring-red-600/10"
                 />
                 <p className="mt-2 text-xs leading-5 text-slate-400">
                   For now this uses the backend verification endpoint. We can swap this for a full
@@ -299,7 +299,7 @@ export default function Dashboard() {
               <button
                 type="submit"
                 disabled={authSubmitting}
-                className="inline-flex w-full items-center justify-center rounded-2xl bg-cyan-400 px-4 py-3.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-slate-500"
+                className="inline-flex w-full items-center justify-center rounded-2xl bg-red-600 px-4 py-3.5 text-sm font-semibold text-slate-950 transition hover:bg-red-500 disabled:cursor-not-allowed disabled:bg-slate-500"
               >
                 {authSubmitting ? 'Verifying token…' : 'Sign in'}
               </button>
@@ -312,13 +312,13 @@ export default function Dashboard() {
 
   return (
     <div className="relative min-h-screen overflow-hidden px-4 py-8 sm:px-6 lg:px-8">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.18),_transparent_34%),radial-gradient(circle_at_bottom_right,_rgba(251,191,36,0.10),_transparent_32%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(239,68,68,0.15),_transparent_34%),radial-gradient(circle_at_bottom_right,_rgba(239,68,68,0.08),_transparent_32%)]" />
 
       <div className="relative mx-auto max-w-7xl space-y-8">
-        <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6 shadow-2xl shadow-cyan-950/30 backdrop-blur-xl sm:p-8">
+        <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6 shadow-2xl shadow-red-950/30 backdrop-blur-xl sm:p-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="space-y-3">
-              <div className="inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">
+              <div className="inline-flex rounded-full border border-red-600/20 bg-red-600/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-red-200">
                 Staff dashboard
               </div>
               <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">
@@ -338,7 +338,7 @@ export default function Dashboard() {
               <button
                 type="button"
                 onClick={() => router.push('/editor/new')}
-                className="rounded-2xl bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
+                className="rounded-2xl bg-red-600 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-red-500"
               >
                 + New Batch
               </button>
@@ -371,7 +371,7 @@ export default function Dashboard() {
         </section>
 
         <section className="grid gap-6 lg:grid-cols-[1.4fr_0.6fr]">
-          <div className="rounded-3xl border border-white/10 bg-slate-950/70 p-6 shadow-2xl shadow-cyan-950/20 backdrop-blur-xl sm:p-8">
+          <div className="rounded-3xl border border-white/10 bg-slate-950/70 p-6 shadow-2xl shadow-red-950/20 backdrop-blur-xl sm:p-8">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-2xl font-semibold text-white">Batches</h2>
@@ -386,7 +386,7 @@ export default function Dashboard() {
                     onClick={() => setFilter(status as typeof filter)}
                     className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
                       filter === status
-                        ? 'bg-cyan-400 text-slate-950'
+                        ? 'bg-red-600 text-slate-950'
                         : 'border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10'
                     }`}
                   >
@@ -420,7 +420,7 @@ export default function Dashboard() {
                     return (
                       <article
                         key={batch.id}
-                        className="rounded-2xl border border-white/10 bg-white/5 p-5 transition hover:border-cyan-400/30 hover:bg-white/7"
+                        className="rounded-2xl border border-white/10 bg-white/5 p-5 transition hover:border-red-600/30 hover:bg-white/7"
                       >
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                           <div className="space-y-3">
@@ -455,7 +455,7 @@ export default function Dashboard() {
 
                             <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
                               <div
-                                className="h-full rounded-full bg-cyan-400"
+                                className="h-full rounded-full bg-red-600"
                                 style={{ width: `${Math.min(100, occupancy)}%` }}
                               />
                             </div>
@@ -468,7 +468,7 @@ export default function Dashboard() {
                             <button
                               type="button"
                               onClick={() => router.push(`/editor/${batch.id}`)}
-                              className="rounded-2xl bg-cyan-400 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
+                              className="rounded-2xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-red-500"
                             >
                               Open
                             </button>
@@ -500,7 +500,7 @@ export default function Dashboard() {
           </div>
 
           <aside className="space-y-6">
-            <div className="rounded-3xl border border-white/10 bg-slate-950/70 p-6 shadow-2xl shadow-cyan-950/20 backdrop-blur-xl">
+            <div className="rounded-3xl border border-white/10 bg-slate-950/70 p-6 shadow-2xl shadow-red-950/20 backdrop-blur-xl">
               <h2 className="text-2xl font-semibold text-white">Quick actions</h2>
               <div className="mt-5 space-y-3">
                 {[
@@ -522,7 +522,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-slate-950/70 p-6 shadow-2xl shadow-cyan-950/20 backdrop-blur-xl">
+            <div className="rounded-3xl border border-white/10 bg-slate-950/70 p-6 shadow-2xl shadow-red-950/20 backdrop-blur-xl">
               <h2 className="text-2xl font-semibold text-white">System note</h2>
               <p className="mt-4 text-sm leading-6 text-slate-300">
                 The dashboard is now wired to the backend batch list endpoint, so the next steps can

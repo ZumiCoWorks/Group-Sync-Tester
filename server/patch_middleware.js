@@ -1,19 +1,9 @@
-import jwt from 'jsonwebtoken';
+const fs = require('fs');
+const file = 'src/middleware.ts';
+let code = fs.readFileSync(file, 'utf8');
+
+const newVerifyToken = `
 import { supabase } from './index';
-import { Request, Response, NextFunction } from 'express';
-import pino from 'pino';
-
-const logger = pino();
-
-export interface AuthRequest extends Request {
-  user?: {
-    id: string;
-    email?: string;
-    role: string;
-    [key: string]: any;
-  };
-}
-
 
 export const verifyToken = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
@@ -108,31 +98,9 @@ export const verifyToken = async (req: AuthRequest, res: Response, next: NextFun
     });
   }
 };
+`;
 
-export const requireRole = (allowedRoles: string[]) => {
-  return (req: Request, res: Response, next: NextFunction) => {
-    const authReq = req as AuthRequest;
-    
-    if (!authReq.user) {
-      return res.status(401).json({
-        success: false,
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'User not authenticated',
-        },
-      });
-    }
+code = code.replace(/export const verifyToken = \(req: AuthRequest, res: Response, next: NextFunction\) => \{[\s\S]*?^};/m, newVerifyToken.trim());
+code = code.replace(/import jwt from 'jsonwebtoken';/, `import jwt from 'jsonwebtoken';\nimport { supabase } from './index';`);
 
-    if (!allowedRoles.includes(authReq.user.role)) {
-      return res.status(403).json({
-        success: false,
-        error: {
-          code: 'FORBIDDEN',
-          message: `This action requires one of the following roles: ${allowedRoles.join(', ')}`,
-        },
-      });
-    }
-
-    next();
-  };
-};
+fs.writeFileSync(file, code);

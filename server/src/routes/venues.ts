@@ -16,7 +16,7 @@ function requestRole(req: Request) {
   return authReq.user?.role || 'student';
 }
 
-router.get('/', verifyToken, requireRole(['staff', 'lecturer', 'admin', 'ops']), async (req: Request, res: Response) => {
+router.get('/', verifyToken, requireRole(['tutor_junior', 'tutor_senior', 'lecturer', 'adhoc', 'admin', 'ops_venue_admin']), async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase
       .from('venues')
@@ -37,7 +37,7 @@ router.get('/', verifyToken, requireRole(['staff', 'lecturer', 'admin', 'ops']),
   }
 });
 
-router.get('/requests', verifyToken, requireRole(['staff', 'lecturer', 'admin', 'ops']), async (req: Request, res: Response) => {
+router.get('/requests', verifyToken, requireRole(['tutor_junior', 'tutor_senior', 'lecturer', 'adhoc', 'admin', 'ops_venue_admin']), async (req: Request, res: Response) => {
   try {
     let query = supabase
       .from('venue_booking_requests')
@@ -68,7 +68,7 @@ router.get('/requests', verifyToken, requireRole(['staff', 'lecturer', 'admin', 
   }
 });
 
-router.post('/requests', verifyToken, requireRole(['staff', 'lecturer', 'admin', 'ops']), async (req: Request, res: Response) => {
+router.post('/requests', verifyToken, requireRole(['tutor_junior', 'tutor_senior', 'lecturer', 'adhoc', 'admin', 'ops_venue_admin']), async (req: Request, res: Response) => {
   try {
     const authReq = req as AuthRequest;
     const { batchId, venueId, requestNotes } = req.body || {};
@@ -117,7 +117,7 @@ router.post('/requests', verifyToken, requireRole(['staff', 'lecturer', 'admin',
   }
 });
 
-router.post('/requests/:requestId/approve', verifyToken, requireRole(['ops', 'admin']), async (req: Request, res: Response) => {
+router.post('/requests/:requestId/approve', verifyToken, requireRole(['ops_venue_admin', 'admin']), async (req: Request, res: Response) => {
   try {
     const { requestId } = req.params;
     const authReq = req as AuthRequest;
@@ -158,7 +158,7 @@ router.post('/requests/:requestId/approve', verifyToken, requireRole(['ops', 'ad
   }
 });
 
-router.post('/requests/:requestId/decline', verifyToken, requireRole(['ops', 'admin']), async (req: Request, res: Response) => {
+router.post('/requests/:requestId/decline', verifyToken, requireRole(['ops_venue_admin', 'admin']), async (req: Request, res: Response) => {
   try {
     const { requestId } = req.params;
     const { declineReason } = req.body || {};
@@ -196,7 +196,7 @@ router.post('/requests/:requestId/decline', verifyToken, requireRole(['ops', 'ad
   }
 });
 
-router.get('/:venueId', verifyToken, requireRole(['staff', 'lecturer', 'admin', 'ops']), async (req: Request, res: Response) => {
+router.get('/:venueId', verifyToken, requireRole(['tutor_junior', 'tutor_senior', 'lecturer', 'adhoc', 'admin', 'ops_venue_admin']), async (req: Request, res: Response) => {
   try {
     const { venueId } = req.params;
     const { data, error } = await supabase
@@ -219,7 +219,7 @@ router.get('/:venueId', verifyToken, requireRole(['staff', 'lecturer', 'admin', 
   }
 });
 
-router.post('/', verifyToken, requireRole(['ops', 'admin']), async (req: Request, res: Response) => {
+router.post('/', verifyToken, requireRole(['ops_venue_admin', 'admin']), async (req: Request, res: Response) => {
   try {
     const authReq = req as AuthRequest;
     const { name, address, capacity, facilities, contact_email, contact_phone } = req.body || {};
@@ -258,7 +258,7 @@ router.post('/', verifyToken, requireRole(['ops', 'admin']), async (req: Request
   }
 });
 
-router.put('/:venueId', verifyToken, requireRole(['ops', 'admin']), async (req: Request, res: Response) => {
+router.put('/:venueId', verifyToken, requireRole(['ops_venue_admin', 'admin']), async (req: Request, res: Response) => {
   try {
     const { venueId } = req.params;
     const { name, address, capacity, facilities, contact_email, contact_phone } = req.body || {};

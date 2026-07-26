@@ -47,11 +47,14 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
-    "typescript": "^5.2.0",
-    "concurrently": "^8.2.0"
+    "concurrently": "^8.2.0",
+    "typescript": "^5.2.0"
   },
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=9.0.0"
+  },
+  "dependencies": {
+    "@next/swc-darwin-x64": "^16.2.12"
   }
 }

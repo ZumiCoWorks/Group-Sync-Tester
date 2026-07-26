@@ -11,7 +11,7 @@ const router = express.Router();
  *   - batchId: Required. The batch ID to fetch logs for.
  *   - action: Optional. Filter by action type (e.g., 'booking_confirmed', 'batch_published')
  */
-router.get('/', verifyToken, requireRole(['staff', 'lecturer', 'admin', 'ops']), async (req, res) => {
+router.get('/', verifyToken, requireRole(['tutor_junior', 'tutor_senior', 'lecturer', 'adhoc', 'admin', 'ops_venue_admin']), async (req, res) => {
   try {
     const { batchId, action } = req.query;
 
@@ -51,7 +51,7 @@ router.get('/', verifyToken, requireRole(['staff', 'lecturer', 'admin', 'ops']),
  * GET /api/audit-logs/export
  * Export audit logs as CSV for a batch
  */
-router.get('/export', verifyToken, requireRole(['staff', 'lecturer', 'admin', 'ops']), async (req, res) => {
+router.get('/export', verifyToken, requireRole(['tutor_junior', 'tutor_senior', 'lecturer', 'adhoc', 'admin', 'ops_venue_admin']), async (req, res) => {
   try {
     const { batchId, action } = req.query;
 

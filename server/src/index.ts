@@ -149,6 +149,7 @@ import importsRouter from './routes/imports';
 import auditLogsRouter from './routes/audit-logs';
 import venuesRouter from './routes/venues';
 import groupSyncRouter from './routes/group-sync';
+import worksuiteRouter from './routes/worksuite';
 
 // Mount routers
 app.use('/api/auth', authRouter);
@@ -159,6 +160,7 @@ app.use('/api/imports', importsRouter);
 app.use('/api/audit-logs', auditLogsRouter);
 app.use('/api/venues', venuesRouter);
 app.use('/api/group-sync', groupSyncRouter);
+app.use('/api/worksuite', worksuiteRouter);
 
 // Fallback placeholders for other APIs until implemented
 app.use('/api/audit', (req: Request, res: Response) => {

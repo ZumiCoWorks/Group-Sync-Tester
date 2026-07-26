@@ -79,7 +79,7 @@ const buildErrorCsv = (errors: ImportErrorRow[]) =>
     ...errors.map((error) => [error.rowNumber, error.first_name || '', error.last_name || '', error.email || '', error.error]),
   ]);
 
-router.post('/', verifyToken, requireRole(['staff', 'lecturer', 'admin']), (req: Request, res: Response) => {
+router.post('/', verifyToken, requireRole(['tutor_junior', 'tutor_senior', 'lecturer', 'adhoc', 'admin']), (req: Request, res: Response) => {
   upload.single('file')(req, res, async (uploadError) => {
     let importJobId: string | null = null;
     let successCount = 0;

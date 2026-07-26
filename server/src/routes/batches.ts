@@ -83,7 +83,7 @@ router.get('/', async (req: Request, res: Response) => {
  * GET /api/batches/internal/:batchId
  * Fetch a single batch by ID for authenticated staff users, including drafts.
  */
-router.get('/internal/:batchId', verifyToken, requireRole(['staff', 'lecturer', 'admin']), async (req: Request, res: Response) => {
+router.get('/internal/:batchId', verifyToken, requireRole(['tutor_junior', 'tutor_senior', 'lecturer', 'adhoc', 'admin']), async (req: Request, res: Response) => {
   try {
     const { batchId } = req.params;
     const batch = await getBatchById(batchId);
@@ -370,7 +370,7 @@ router.get('/:batchId/bookings-public', async (req: Request, res: Response) => {
  * POST /api/batches (authenticated, staff/lecturer only)
  * Create a new batch
  */
-router.post('/', verifyToken, requireRole(['staff', 'lecturer', 'admin']), async (req: Request, res: Response) => {
+router.post('/', verifyToken, requireRole(['tutor_junior', 'tutor_senior', 'lecturer', 'adhoc', 'admin']), async (req: Request, res: Response) => {
   try {
     const authReq = req as AuthRequest;
     const userId = authReq.user?.id;
@@ -474,7 +474,7 @@ router.post('/', verifyToken, requireRole(['staff', 'lecturer', 'admin']), async
  * PUT /api/batches/:batchId (authenticated, staff/lecturer only)
  * Update an existing batch
  */
-router.put('/:batchId', verifyToken, requireRole(['staff', 'lecturer', 'admin']), async (req: Request, res: Response) => {
+router.put('/:batchId', verifyToken, requireRole(['tutor_junior', 'tutor_senior', 'lecturer', 'adhoc', 'admin']), async (req: Request, res: Response) => {
   try {
     const { batchId } = req.params;
     const {
@@ -538,7 +538,7 @@ router.put('/:batchId', verifyToken, requireRole(['staff', 'lecturer', 'admin'])
  * POST /api/batches/:batchId/publish (authenticated, staff/lecturer only)
  * Publish a batch
  */
-router.post('/:batchId/publish', verifyToken, requireRole(['staff', 'lecturer', 'admin']), async (req: Request, res: Response) => {
+router.post('/:batchId/publish', verifyToken, requireRole(['tutor_junior', 'tutor_senior', 'lecturer', 'adhoc', 'admin']), async (req: Request, res: Response) => {
   try {
     const authReq = req as AuthRequest;
     const userId = authReq.user?.id;
@@ -578,7 +578,7 @@ router.post('/:batchId/publish', verifyToken, requireRole(['staff', 'lecturer', 
  * POST /api/batches/:batchId/close
  * Close (archive) a published batch so no new bookings can be made.
  */
-router.post('/:batchId/close', verifyToken, requireRole(['staff', 'lecturer', 'admin']), async (req: Request, res: Response) => {
+router.post('/:batchId/close', verifyToken, requireRole(['tutor_junior', 'tutor_senior', 'lecturer', 'adhoc', 'admin']), async (req: Request, res: Response) => {
   try {
     const authReq = req as AuthRequest;
     const userId = authReq.user?.id;

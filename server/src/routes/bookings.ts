@@ -70,7 +70,7 @@ router.post('/', async (req: Request, res: Response) => {
  * GET /api/bookings?batchId=X (authenticated, staff/lecturer/ops only)
  * List all bookings for a batch
  */
-router.get('/', verifyToken, requireRole(['staff', 'lecturer', 'admin', 'ops']), async (req: Request, res: Response) => {
+router.get('/', verifyToken, requireRole(['tutor_junior', 'tutor_senior', 'lecturer', 'adhoc', 'admin', 'ops_venue_admin']), async (req: Request, res: Response) => {
   try {
     const batchId = typeof req.query.batchId === 'string' ? req.query.batchId : undefined;
 
@@ -115,7 +115,7 @@ router.get('/', verifyToken, requireRole(['staff', 'lecturer', 'admin', 'ops']),
  * DELETE /api/bookings/:bookingId (authenticated, staff/lecturer only)
  * Cancel a booking
  */
-router.delete('/:bookingId', verifyToken, requireRole(['staff', 'lecturer', 'admin', 'ops']), async (req: Request, res: Response) => {
+router.delete('/:bookingId', verifyToken, requireRole(['tutor_junior', 'tutor_senior', 'lecturer', 'adhoc', 'admin', 'ops_venue_admin']), async (req: Request, res: Response) => {
   try {
     const authReq = req as AuthRequest;
     const userId = authReq.user?.id;
@@ -152,7 +152,7 @@ router.delete('/:bookingId', verifyToken, requireRole(['staff', 'lecturer', 'adm
  * PUT /api/bookings/:bookingId (authenticated, staff/lecturer only)
  * Update booking status (mark attended, reassign, etc.)
  */
-router.put('/:bookingId', verifyToken, requireRole(['staff', 'lecturer', 'admin', 'ops']), async (req: Request, res: Response) => {
+router.put('/:bookingId', verifyToken, requireRole(['tutor_junior', 'tutor_senior', 'lecturer', 'adhoc', 'admin', 'ops_venue_admin']), async (req: Request, res: Response) => {
   try {
     const authReq = req as AuthRequest;
     const userId = authReq.user?.id;

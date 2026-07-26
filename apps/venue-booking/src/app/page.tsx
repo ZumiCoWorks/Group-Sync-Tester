@@ -350,6 +350,30 @@ export default function VenueBookingDashboard() {
       </section>
 
       <div className="mt-8 grid gap-6 xl:grid-cols-[1fr_1fr]">
+        <section className="rounded-3xl border border-white/10 bg-[var(--surface)] p-6 backdrop-blur-xl col-span-full">
+          <h2 className="text-2xl font-semibold mb-4">Worksuite Registry POC</h2>
+          <p className="text-sm text-slate-300 mb-6">Access the new cross-school venue request and operations platform.</p>
+          
+          <div className="flex flex-wrap gap-4">
+            {canRequestVenues && (
+              <button onClick={() => router.push('/worksuite/registry/request')} className="px-6 py-3 bg-blue-600 rounded-xl font-medium text-white shadow-md hover:bg-blue-500 transition">
+                Go to Request Portal
+              </button>
+            )}
+            
+            {canManageVenues && (
+              <>
+                <button onClick={() => router.push('/worksuite/ops/approvals')} className="px-6 py-3 bg-green-600 rounded-xl font-medium text-white shadow-md hover:bg-green-500 transition">
+                  Go to Ops Approvals
+                </button>
+                <button onClick={() => router.push('/worksuite/ops/importer')} className="px-6 py-3 bg-purple-600 rounded-xl font-medium text-white shadow-md hover:bg-purple-500 transition">
+                  Import Master Timetable
+                </button>
+              </>
+            )}
+          </div>
+        </section>
+
         {canManageVenues ? (
           <section className="rounded-3xl border border-white/10 bg-[var(--surface)] p-6 backdrop-blur-xl">
             <h2 className="text-2xl font-semibold">Create venue</h2>

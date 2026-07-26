@@ -102,7 +102,7 @@ const writePdf = (response: Response, batchTitle: string, rows: ExportRow[]) => 
   document.end();
 };
 
-router.get('/', verifyToken, requireRole(['staff', 'lecturer', 'admin', 'ops']), async (req: Request, res: Response) => {
+router.get('/', verifyToken, requireRole(['tutor_junior', 'tutor_senior', 'lecturer', 'adhoc', 'admin', 'ops_venue_admin']), async (req: Request, res: Response) => {
   try {
     const authReq = req as AuthRequest;
     const userId = authReq.user?.id;

@@ -279,6 +279,13 @@ export async function listBatches(status?: string) {
  * Create a batch and optionally seed slots in the same call.
  */
 export async function createBatch(createdByUserId: string, input: CreateBatchInput) {
+  const start = new Date(input.date_range_start);
+  const end = new Date(input.date_range_end);
+  const diffDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)); 
+  if (diffDays > 30) {
+    throw new ApiError(400, 'INVALID_DATE_RANGE', 'Batch date range cannot exceed 30 days');
+  }
+
   const slotCapacity = input.per_slot_capacity ?? 1;
   const publicViewToken = randomUUID().replace(/-/g, '');
   const { data: batch, error: batchError } = await supabase
@@ -294,6 +301,10 @@ export async function createBatch(createdByUserId: string, input: CreateBatchInp
       slot_duration_minutes: input.slot_duration_minutes,
       per_slot_capacity: slotCapacity,
       batch_capacity: input.batch_capacity ?? null,
+      day_start_time: input.day_start_time,
+      day_end_time: input.day_end_time,
+      lunch_break_start: input.lunch_break_start,
+      lunch_break_end: input.lunch_break_end,
       public_view_token: publicViewToken,
       booking_count: 0,
       total_slots: 0,

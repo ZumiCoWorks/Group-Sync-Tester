@@ -36,9 +36,7 @@ type BatchFormState = {
   venueId: string;
   dateRangeStart: string;
   dateRangeEnd: string;
-  totalSlotsWanted: string;
   slotDurationMinutes: string;
-  totalSlots: string;
   batchCapacity: string;
   dayStartTime: string;
   dayEndTime: string;
@@ -55,9 +53,7 @@ const emptyFormState = (): BatchFormState => ({
   venueId: '',
   dateRangeStart: '',
     dateRangeEnd: '',
-    totalSlotsWanted: '',
-  slotDurationMinutes: '60',
-  totalSlots: '',
+    slotDurationMinutes: '60',
   batchCapacity: '',
   dayStartTime: '09:00',
   dayEndTime: '17:00',
@@ -125,14 +121,12 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
           dateRangeStart: toDateInputValue(data.date_range_start),
           dateRangeEnd: toDateInputValue(data.date_range_end),
           slotDurationMinutes: String(data.slot_duration_minutes ?? 60),
-          totalSlots: data.total_slots ? String(data.total_slots) : '',
           batchCapacity: data.batch_capacity ? String(data.batch_capacity) : '',
           dayStartTime: toTimeInputValue(data.day_start_time, '09:00'),
           dayEndTime: toTimeInputValue(data.day_end_time, '17:00'),
           lunchBreakStart: toTimeInputValue(data.lunch_break_start, '13:00'),
           lunchBreakEnd: toTimeInputValue(data.lunch_break_end, '14:00'),
-          totalSlotsWanted: '',
-        });
+          });
         setBatchSummary({
           status: data.status,
           booking_count: data.booking_count,
@@ -163,22 +157,19 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
     dayStart = '09:00',
     dayEnd = '17:00',
     lunchStart = '13:00',
-    lunchEnd = '14:00',
-    totalSlotsWantedStr = ''
+    lunchEnd = '14:00'
   ) {
     if (slotDurationMinutes <= 0) return [];
 
-    const startDate = new Date(startDateStr);
-    let endDate = new Date(endDateStr);
-    const totalWanted = parseInt(totalSlotsWantedStr, 10);
-    const hasTotalWanted = !isNaN(totalWanted) && totalWanted > 0;
-    
-    // If they specified how many slots they want, we generate up to 365 days max to prevent infinite loops
-    if (hasTotalWanted) {
-       endDate = new Date(startDate);
-       endDate.setDate(endDate.getDate() + 365);
+    const start = new Date(startDateStr);
+    const end = new Date(endDateStr);
+    if (Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) > 30) {
+      throw new Error('Batch date range cannot exceed 30 days.');
     }
 
+    const startDate = new Date(startDateStr);
+    let endDate = new Date(endDateStr);
+    
     const parseMinutes = (time: string, fallback: number) => {
       const [hRaw, mRaw] = time.split(':');
       const h = Number(hRaw);
@@ -221,9 +212,6 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
       for (const window of windows) {
         let cursor = new Date(window.start);
         while (cursor.getTime() + slotDurationMs <= window.end.getTime()) {
-          if (hasTotalWanted && generated.length >= totalWanted) {
-             return generated;
-          }
           const slotEnd = new Date(cursor.getTime() + slotDurationMs);
           generated.push({
             start_time: cursor.toISOString(),
@@ -234,9 +222,6 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
         }
       }
       
-      if (hasTotalWanted && generated.length >= totalWanted) {
-         break;
-      }
       currentDay.setDate(currentDay.getDate() + 1);
     }
 
@@ -247,7 +232,7 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const generatedSlotsPreview = useMemo(() => {
     if (!formState.dateRangeStart) return [];
-    if (!formState.dateRangeEnd && !formState.totalSlotsWanted) return [];
+    if (!formState.dateRangeEnd) return [];
     
     const slotDuration = Number(formState.slotDurationMinutes) || 0;
     if (slotDuration <= 0) return [];
@@ -260,10 +245,9 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
       formState.dayStartTime,
       formState.dayEndTime,
       formState.lunchBreakStart,
-      formState.lunchBreakEnd,
-      formState.totalSlotsWanted
+      formState.lunchBreakEnd
     );
-  }, [formState.dateRangeStart, formState.dateRangeEnd, formState.totalSlotsWanted, formState.slotDurationMinutes, formState.dayStartTime, formState.dayEndTime, formState.lunchBreakStart, formState.lunchBreakEnd]);
+  }, [formState.dateRangeStart, formState.dateRangeEnd, formState.slotDurationMinutes, formState.dayStartTime, formState.dayEndTime, formState.lunchBreakStart, formState.lunchBreakEnd]);
 
 
   const bookingLink = batchId ? `${studentBookingBase}/batch/${batchId}` : '';
@@ -307,7 +291,9 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
       const slotDuration = Number(formState.slotDurationMinutes) || 60;
       const perSlotCap = Number((document.getElementById('perSlotCapacity') as HTMLInputElement)?.value) || 1;
       
-      const generatedSlots = generateSlotsPayload(
+      let generatedSlots: any[] = [];
+      try {
+        generatedSlots = generateSlotsPayload(
         formState.dateRangeStart,
         formState.dateRangeEnd || formState.dateRangeStart,
         slotDuration,
@@ -315,9 +301,14 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
         formState.dayStartTime,
         formState.dayEndTime,
         formState.lunchBreakStart,
-        formState.lunchBreakEnd,
-        formState.totalSlotsWanted
+        formState.lunchBreakEnd
       );
+
+      } catch (err: any) {
+        setSaveError(err.message);
+        setSaving(false);
+        return;
+      }
 
       if (generatedSlots.length === 0) {
         setSaveError(
@@ -344,7 +335,7 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
         batchCapacity: formState.batchCapacity.trim() 
           ? Number(formState.batchCapacity) 
           : calculatedPlaceholderCapacity,
-        // If user provided a totalSlots value, generate `slots` array client-side and send to backend
+        // If slots are generated client-side, send to backend
         ...(generatedSlots.length > 0 ? { slots: generatedSlots } : {}),
       };
 
