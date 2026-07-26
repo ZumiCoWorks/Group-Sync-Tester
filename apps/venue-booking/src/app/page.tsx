@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { Session } from '@supabase/supabase-js';
+import { useRouter } from 'next/navigation';
 import { venueSupabase } from '../utils/supabase';
 
 type Venue = {
@@ -42,6 +43,7 @@ function getRoleFromSession(session: Session | null): UserRole {
 }
 
 export default function VenueBookingDashboard() {
+  const router = useRouter();
   const [authState, setAuthState] = useState<AuthState>('checking');
   const [authToken, setAuthToken] = useState('');
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
