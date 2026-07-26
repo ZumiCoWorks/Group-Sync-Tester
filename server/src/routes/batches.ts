@@ -505,6 +505,7 @@ router.put('/:batchId', verifyToken, requireRole(['tutor_junior', 'tutor_senior'
       day_end_time: typeof dayEndTime === 'string' && dayEndTime.trim() ? dayEndTime.trim() : undefined,
       lunch_break_start: typeof lunchBreakStart === 'string' && lunchBreakStart.trim() ? lunchBreakStart.trim() : undefined,
       lunch_break_end: typeof lunchBreakEnd === 'string' && lunchBreakEnd.trim() ? lunchBreakEnd.trim() : undefined,
+      slots: Array.isArray(req.body.slots) ? req.body.slots : undefined,
     });
 
     return res.json({

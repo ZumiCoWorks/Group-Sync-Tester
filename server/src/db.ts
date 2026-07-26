@@ -392,6 +392,43 @@ export async function updateBatch(batchId: string, input: Partial<CreateBatchInp
     throw new ApiError(500, 'DB_ERROR', 'Failed to update batch');
   }
 
+  // If slots are provided and the batch is still a draft, replace all slots
+  if (input.slots && input.slots.length > 0 && existingBatch.status === 'draft') {
+    const { error: deleteError } = await supabase
+      .from('slots')
+      .delete()
+      .eq('batch_id', batchId);
+
+    if (deleteError) {
+      logger.error(deleteError, 'Error deleting old slots during update');
+      throw new ApiError(500, 'DB_ERROR', 'Failed to replace batch slots');
+    }
+
+    const slotCapacity = input.per_slot_capacity ?? existingBatch.per_slot_capacity ?? 1;
+    const slotsToInsert = input.slots.map((slot) => ({
+      batch_id: batchId,
+      start_time: slot.start_time,
+      end_time: slot.end_time,
+      capacity: slot.capacity ?? slotCapacity,
+      booking_count: 0,
+    }));
+
+    const { error: slotsError } = await supabase.from('slots').insert(slotsToInsert);
+
+    if (slotsError) {
+      logger.error(slotsError, 'Error inserting new slots during update');
+      throw new ApiError(500, 'DB_ERROR', 'Failed to create new batch slots');
+    }
+
+    // Update total_slots count
+    await supabase
+      .from('batches')
+      .update({ total_slots: slotsToInsert.length })
+      .eq('id', batchId);
+      
+    batch.total_slots = slotsToInsert.length;
+  }
+
   await logAuditEvent('batch_edited', 'batch', batchId, {
     before: existingBatch,
     after: batch,
