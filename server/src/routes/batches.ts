@@ -71,7 +71,8 @@ router.get('/', async (req: Request, res: Response) => {
       success: false,
       error: {
         code: 'INTERNAL_ERROR',
-        message: 'An unexpected error occurred',
+        message: 'An unexpected error occurred: ' + (error instanceof Error ? error.message : JSON.stringify(error)),
+        details: error,
       },
     });
   }
@@ -115,7 +116,8 @@ router.get('/internal/:batchId', verifyToken, requireRole(['staff', 'lecturer', 
       success: false,
       error: {
         code: 'INTERNAL_ERROR',
-        message: 'An unexpected error occurred',
+        message: 'An unexpected error occurred: ' + (error instanceof Error ? error.message : JSON.stringify(error)),
+        details: error,
       },
     });
   }
@@ -302,7 +304,8 @@ router.get('/:batchId/roster', async (req: Request, res: Response) => {
       success: false,
       error: {
         code: 'INTERNAL_ERROR',
-        message: 'An unexpected error occurred',
+        message: 'An unexpected error occurred: ' + (error instanceof Error ? error.message : JSON.stringify(error)),
+        details: error,
       },
     });
   }
@@ -350,7 +353,8 @@ router.get('/:batchId/bookings-public', async (req: Request, res: Response) => {
       success: false,
       error: {
         code: 'INTERNAL_ERROR',
-        message: 'An unexpected error occurred',
+        message: 'An unexpected error occurred: ' + (error instanceof Error ? error.message : JSON.stringify(error)),
+        details: error,
       },
     });
   }
@@ -411,6 +415,7 @@ router.post('/', verifyToken, requireRole(['staff', 'lecturer', 'admin']), async
         error: {
           code: 'USER_BOOTSTRAP_FAILED',
           message: 'Unable to prepare staff account for batch creation',
+          details: profileErr,
         },
       });
     }
@@ -451,7 +456,8 @@ router.post('/', verifyToken, requireRole(['staff', 'lecturer', 'admin']), async
       success: false,
       error: {
         code: 'INTERNAL_ERROR',
-        message: 'An unexpected error occurred',
+        message: 'An unexpected error occurred: ' + (error instanceof Error ? error.message : JSON.stringify(error)),
+        details: error,
       },
     });
   }
@@ -513,7 +519,8 @@ router.put('/:batchId', verifyToken, requireRole(['staff', 'lecturer', 'admin'])
       success: false,
       error: {
         code: 'INTERNAL_ERROR',
-        message: 'An unexpected error occurred',
+        message: 'An unexpected error occurred: ' + (error instanceof Error ? error.message : JSON.stringify(error)),
+        details: error,
       },
     });
   }
@@ -551,7 +558,8 @@ router.post('/:batchId/publish', verifyToken, requireRole(['staff', 'lecturer', 
       success: false,
       error: {
         code: 'INTERNAL_ERROR',
-        message: 'An unexpected error occurred',
+        message: 'An unexpected error occurred: ' + (error instanceof Error ? error.message : JSON.stringify(error)),
+        details: error,
       },
     });
   }
