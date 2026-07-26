@@ -392,8 +392,8 @@ export async function updateBatch(batchId: string, input: Partial<CreateBatchInp
     throw new ApiError(500, 'DB_ERROR', 'Failed to update batch');
   }
 
-  // If slots are provided and the batch is still a draft, replace all slots
-  if (input.slots && input.slots.length > 0 && existingBatch.status === 'draft') {
+  // If slots are provided and the batch is safe to modify (draft OR 0 bookings), replace all slots
+  if (input.slots && input.slots.length > 0 && (existingBatch.status === 'draft' || existingBatch.booking_count === 0)) {
     const { error: deleteError } = await supabase
       .from('slots')
       .delete()
