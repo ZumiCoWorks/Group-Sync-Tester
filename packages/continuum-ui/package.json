@@ -1,0 +1,22 @@
+{
+  "name": "@afda/continuum-ui",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.tsx",
+  "exports": {
+    ".": "./src/index.tsx",
+    "./interactive": "./src/interactive.tsx",
+    "./styles.css": "./src/styles.css"
+  },
+  "scripts": {
+    "type-check": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "react": "^18.2.0",
+    "typescript": "^5.2.0"
+  }
+}
