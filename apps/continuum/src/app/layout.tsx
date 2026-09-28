@@ -1,14 +1,18 @@
 import type { Metadata } from 'next';
+import localFont from 'next/font/local';
 import './globals.css';
-import { ContinuumFrame } from '@/components/continuum-frame';
+
+const continuumSans = localFont({
+  src: '../../../../node_modules/next/dist/next-devtools/server/font/geist-latin.woff2',
+  display: 'swap',
+  variable: '--font-continuum',
+});
 
 export const metadata: Metadata = {
-  title: 'AFDA Continuum · POC',
-  description: 'AFDA production-venture platform proof of concept',
-  robots: { index: false, follow: false },
+  title: 'Continuum | AFDA',
+  description: 'AFDA learning workspace platform',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const demoMode = process.env.NEXT_PUBLIC_CONTINUUM_DEMO_MODE === 'true';
-  return <html lang="en"><body><ContinuumFrame demoMode={demoMode}>{children}</ContinuumFrame></body></html>;
+  return <html lang="en"><body className={continuumSans.variable}>{children}</body></html>;
 }

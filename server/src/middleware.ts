@@ -41,13 +41,15 @@ export const verifyToken = async (req: AuthRequest, res: Response, next: NextFun
   }
 
   try {
-    const secret = process.env.SUPABASE_JWT_SECRET || '';
+    // Securely verify token and get user using Supabase Admin Auth (supports ES256)
+    const { data: authData, error: authError } = await supabase.auth.getUser(token);
     
-    // Strict signature verification against the rotated secret
-    const decoded: any = jwt.verify(token, secret);
+    if (authError || !authData.user) {
+      throw new Error(authError?.message || 'Invalid token');
+    }
     
-    const userId = decoded.sub || decoded.id;
-    const userEmail = decoded.email;
+    const userId = authData.user.id;
+    const userEmail = authData.user.email;
 
     // Fetch role_v2 and access_expires_at from public.users
     const { data: userData, error: userError } = await supabase
@@ -91,9 +93,7 @@ export const verifyToken = async (req: AuthRequest, res: Response, next: NextFun
     req.user = {
       id: userId,
       email: userEmail,
-      role: userData.role_v2,
-      iat: decoded.iat,
-      exp: decoded.exp
+      role: userData.role_v2
     };
     
     next();

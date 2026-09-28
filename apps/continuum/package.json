@@ -10,11 +10,11 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@afda/continuum-ui": "file:../../packages/continuum-ui",
+    "@supabase/supabase-js": "2.106.1",
+    "lucide-react": "^0.468.0",
     "next": "^16.2.12",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "xlsx": "^0.18.5"
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
     "@types/node": "^20.6.0",
