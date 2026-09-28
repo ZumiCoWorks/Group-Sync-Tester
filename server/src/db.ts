@@ -8,13 +8,22 @@ import { randomUUID } from 'crypto';
 const logger = pino();
 
 export class ApiError extends Error {
+  public code: string;
+  public details?: unknown;
+
   constructor(
     public statusCode: number,
-    public code: string,
-    message: string,
-    public details?: Record<string, any>
+    codeOrMessage: string,
+    messageOrDetails?: string | unknown,
+    details?: unknown
   ) {
-    super(message);
+    const hasExplicitCode = typeof messageOrDetails === 'string';
+    super(hasExplicitCode ? messageOrDetails : codeOrMessage);
+
+    // New routes use (status, code, message, details). Retain compatibility
+    // with older routes that still use (status, message, details).
+    this.code = hasExplicitCode ? codeOrMessage : 'API_ERROR';
+    this.details = hasExplicitCode ? details : messageOrDetails;
   }
 }
 
