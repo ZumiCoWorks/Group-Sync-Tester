@@ -12,14 +12,17 @@ export default function NewBatchPage() {
 
   useEffect(() => {
     const checkAuth = async () => {
+      const returnPath = `${window.location.pathname}${window.location.search}`;
+      const loginPath = `/?returnTo=${encodeURIComponent(returnPath)}`;
+
       if (!supabase) {
         setChecking(false);
-        router.push('/');
+        router.replace(loginPath);
         return;
       }
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        router.push('/');
+        router.replace(loginPath);
       } else {
         setAuthToken(session.access_token);
       }
