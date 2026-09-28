@@ -91,6 +91,7 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
   const [copiedLecturerRosterLink, setCopiedLecturerRosterLink] = useState(false);
   const [hasBreak, setHasBreak] = useState(true);
   const [formState, setFormState] = useState<BatchFormState>(emptyFormState());
+  const [continuumHandoff, setContinuumHandoff] = useState<{ workspace: string; workspaceId: string; sessionCode: string; sessionId: string } | null>(null);
   const [batchSummary, setBatchSummary] = useState<{
     status?: string;
     booking_count?: number;
@@ -98,6 +99,26 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
     published_at?: string | null;
     public_view_token?: string | null;
   } | null>(null);
+
+  useEffect(() => {
+    if (!isCreateMode) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('source') !== 'continuum') return;
+    const targetSlots = Number(params.get('targetSlots'));
+    const safeTargetSlots = Number.isInteger(targetSlots) && targetSlots > 0 && targetSlots <= 500 ? String(targetSlots) : '';
+    setContinuumHandoff({
+      workspace: params.get('workspace') || 'Configured workspace',
+      workspaceId: params.get('workspaceId') || '',
+      sessionCode: params.get('sessionCode') || 'linked source',
+      sessionId: params.get('sessionId') || '',
+    });
+    setFormState((current) => ({
+      ...current,
+      title: params.get('title')?.slice(0, 255) || current.title,
+      description: params.get('description')?.slice(0, 1000) || current.description,
+      targetSlotCount: safeTargetSlots || current.targetSlotCount,
+    }));
+  }, [isCreateMode]);
 
   useEffect(() => {
     const loadBatchDetails = async () => {
@@ -390,7 +411,21 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
 
       setSaveSuccess(isCreateMode ? 'Batch created successfully.' : 'Batch updated successfully.');
       setCopiedBookingLink(false);
-      if (isCreateMode) router.push('/');
+      if (isCreateMode && result.data?.id && continuumHandoff?.workspaceId) {
+        const linkResponse = await fetch(`${backendUrl}/api/continuum/schedule/batches/${result.data.id}/link`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+          body: JSON.stringify({ workspace_id: continuumHandoff.workspaceId, source_session_id: continuumHandoff.sessionId }),
+        });
+        if (!linkResponse.ok) {
+          const linkResult = (await linkResponse.json().catch(() => null)) as { error?: { message?: string } } | null;
+          setSaveError(`The batch was created, but Continuum could not record the handoff: ${linkResult?.error?.message || 'unknown link error'}. Open the batch from the dashboard to continue.`);
+          return;
+        }
+        router.push(`/editor/${result.data.id}`);
+      } else if (isCreateMode) {
+        router.push('/');
+      }
     } catch (error) {
       setSaveError('Unable to reach the backend.');
     } finally {
@@ -489,6 +524,12 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
               {isCreateMode ? 'Set up a new batch.' : 'Edit batch details.'}
             </h1>
           </div>
+          {continuumHandoff && (
+            <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-100">
+              <p className="font-semibold">Continued from Continuum</p>
+              <p className="mt-1">Workspace: {continuumHandoff.workspace} · Group Sync session: {continuumHandoff.sessionCode}. The title and target slot count are prefilled from the live source; confirm the date and times here.</p>
+            </div>
+          )}
           {batchId && (
             <div className="mt-5 rounded-2xl border border-accent-creative/20 bg-accent-creative/10 p-4 text-sm text-heading">
               <div className="flex flex-col gap-4">

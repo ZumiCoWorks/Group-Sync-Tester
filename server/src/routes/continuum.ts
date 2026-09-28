@@ -628,4 +628,195 @@ router.post('/group-sync/sessions', async (req: AuthRequest, res: Response) => {
   }
 });
 
+/**
+ * POST /api/continuum/group-sync/sessions/:sessionId/link
+ * Explicitly brings an existing Group Sync session into a Continuum workspace.
+ * The source session stays owned by Group Sync; Continuum stores only the link.
+ */
+router.post('/group-sync/sessions/:sessionId/link', async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) throw new ApiError(401, 'UNAUTHORIZED', 'Unauthorized');
+    const sessionId = req.params.sessionId;
+    const workspaceId = typeof req.body.workspace_id === 'string' ? req.body.workspace_id.trim() : '';
+    if (!/^[0-9a-f-]{36}$/i.test(sessionId) || !/^[0-9a-f-]{36}$/i.test(workspaceId)) {
+      throw new ApiError(400, 'VALIDATION_ERROR', 'A valid Group Sync session and workspace are required');
+    }
+
+    const [{ data: groupService, error: serviceError }, { data: sourceSession, error: sessionError }] = await Promise.all([
+      supabase.from('continuum_services').select('id').eq('service_type', 'groups').maybeSingle(),
+      supabase.from('sync_sessions').select('id, code, name, status, groups').eq('id', sessionId).maybeSingle(),
+    ]);
+    if (serviceError || !groupService) throw new ApiError(500, 'SERVICE_REGISTRY_MISSING', serviceError?.message || 'Group Sync is missing from the service registry');
+    if (sessionError || !sourceSession) throw new ApiError(404, 'SESSION_NOT_FOUND', 'The selected Group Sync session no longer exists');
+
+    const { data: workspaceService, error: workspaceServiceError } = await supabase
+      .from('continuum_workspace_services')
+      .select('enabled')
+      .eq('workspace_id', workspaceId)
+      .eq('service_id', groupService.id)
+      .maybeSingle();
+    if (workspaceServiceError) throw new ApiError(500, 'WORKSPACE_LOOKUP_FAILED', workspaceServiceError.message);
+    if (!workspaceService?.enabled) throw new ApiError(409, 'SERVICE_NOT_ENABLED', 'Enable Group Sync for this workspace before importing a session');
+    if (!(await canRunWorkspaceAction(req, workspaceId, groupService.id, 'group_sync'))) {
+      throw new ApiError(403, 'CAPABILITY_REQUIRED', 'You do not have Group Sync management access for this workspace');
+    }
+
+    const { data: existingLink, error: existingError } = await supabase
+      .from('continuum_record_links')
+      .select('id, workspace_id, service_id, source_table, source_record_id, record_type, relationship, created_at')
+      .eq('source_table', 'sync_sessions')
+      .eq('source_record_id', sessionId)
+      .limit(1)
+      .maybeSingle();
+    if (existingError) throw new ApiError(500, 'RECORD_LINK_LOOKUP_FAILED', existingError.message);
+    if (existingLink && existingLink.workspace_id !== workspaceId) {
+      throw new ApiError(409, 'SESSION_ALREADY_LINKED', 'This Group Sync session already belongs to another Continuum workspace');
+    }
+    if (existingLink) return res.json({ success: true, data: existingLink });
+
+    const { data: link, error: linkError } = await supabase
+      .from('continuum_record_links')
+      .insert({
+        workspace_id: workspaceId,
+        service_id: groupService.id,
+        source_table: 'sync_sessions',
+        source_record_id: sessionId,
+        record_type: 'group_sync_session',
+        relationship: 'primary',
+        linked_by_user_id: req.user.id,
+      })
+      .select('id, workspace_id, service_id, source_table, source_record_id, record_type, relationship, created_at')
+      .single();
+    if (linkError || !link) throw new ApiError(500, 'RECORD_LINK_FAILED', linkError?.message || 'Continuum could not link the Group Sync session');
+
+    const now = new Date().toISOString();
+    await supabase.from('continuum_workflow_runs').insert({
+      workspace_id: workspaceId,
+      service_id: groupService.id,
+      action_key: 'import_existing_session',
+      status: 'succeeded',
+      input_snapshot: { session_id: sessionId },
+      result_snapshot: {
+        session_code: sourceSession.code,
+        session_status: sourceSession.status,
+        group_count: Array.isArray(sourceSession.groups) ? sourceSession.groups.length : 0,
+      },
+      source_table: 'sync_sessions',
+      source_record_id: sessionId,
+      initiated_by_user_id: req.user.id,
+      started_at: now,
+      completed_at: now,
+    });
+
+    await logAuditEvent(
+      'continuum_group_sync_session_linked',
+      'sync_session',
+      sessionId,
+      { source: 'group_sync', workspace_id: workspaceId, session_code: sourceSession.code, session_name: sourceSession.name },
+      req.user.id
+    );
+
+    return res.status(201).json({ success: true, data: link });
+  } catch (error: any) {
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      error: { code: error.code || 'RECORD_LINK_FAILED', message: error.message || 'The Group Sync session could not be linked' },
+    });
+  }
+});
+
+/**
+ * POST /api/continuum/schedule/batches/:batchId/link
+ * Completes a handoff performed in Slot Booking without moving batch ownership.
+ */
+router.post('/schedule/batches/:batchId/link', async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) throw new ApiError(401, 'UNAUTHORIZED', 'Unauthorized');
+    const batchId = req.params.batchId;
+    const workspaceId = typeof req.body.workspace_id === 'string' ? req.body.workspace_id.trim() : '';
+    const sourceSessionId = typeof req.body.source_session_id === 'string' ? req.body.source_session_id.trim() : '';
+    if (!/^[0-9a-f-]{36}$/i.test(batchId) || !/^[0-9a-f-]{36}$/i.test(workspaceId)) {
+      throw new ApiError(400, 'VALIDATION_ERROR', 'A valid Schedule batch and workspace are required');
+    }
+
+    const [{ data: scheduleService, error: serviceError }, { data: batch, error: batchError }] = await Promise.all([
+      supabase.from('continuum_services').select('id').eq('service_type', 'schedule').maybeSingle(),
+      supabase.from('batches').select('id, title, total_slots, status').eq('id', batchId).maybeSingle(),
+    ]);
+    if (serviceError || !scheduleService) throw new ApiError(500, 'SERVICE_REGISTRY_MISSING', serviceError?.message || 'Schedule is missing from the service registry');
+    if (batchError || !batch) throw new ApiError(404, 'BATCH_NOT_FOUND', 'The Schedule batch no longer exists');
+
+    const { data: workspaceService, error: workspaceServiceError } = await supabase
+      .from('continuum_workspace_services')
+      .select('enabled')
+      .eq('workspace_id', workspaceId)
+      .eq('service_id', scheduleService.id)
+      .maybeSingle();
+    if (workspaceServiceError) throw new ApiError(500, 'WORKSPACE_LOOKUP_FAILED', workspaceServiceError.message);
+    if (!workspaceService?.enabled) throw new ApiError(409, 'SERVICE_NOT_ENABLED', 'Enable Schedule for this workspace before linking a batch');
+    if (!(await canRunWorkspaceAction(req, workspaceId, scheduleService.id, 'schedule'))) {
+      throw new ApiError(403, 'CAPABILITY_REQUIRED', 'You do not have orchestration access for this workspace');
+    }
+
+    if (sourceSessionId) {
+      if (!/^[0-9a-f-]{36}$/i.test(sourceSessionId)) throw new ApiError(400, 'VALIDATION_ERROR', 'The source Group Sync session ID is invalid');
+      const { data: sourceLink, error: sourceError } = await supabase
+        .from('continuum_record_links')
+        .select('id')
+        .eq('workspace_id', workspaceId)
+        .eq('source_table', 'sync_sessions')
+        .eq('source_record_id', sourceSessionId)
+        .maybeSingle();
+      if (sourceError || !sourceLink) throw new ApiError(409, 'SOURCE_NOT_LINKED', 'The Group Sync source must belong to this workspace before the Schedule handoff can be completed');
+    }
+
+    const { data: existing, error: existingError } = await supabase
+      .from('continuum_record_links')
+      .select('id, workspace_id, service_id, source_table, source_record_id, record_type, relationship, created_at')
+      .eq('workspace_id', workspaceId)
+      .eq('source_table', 'batches')
+      .eq('source_record_id', batchId)
+      .maybeSingle();
+    if (existingError) throw new ApiError(500, 'RECORD_LINK_LOOKUP_FAILED', existingError.message);
+    if (existing) return res.json({ success: true, data: existing });
+
+    const { data: link, error: linkError } = await supabase.from('continuum_record_links').insert({
+      workspace_id: workspaceId,
+      service_id: scheduleService.id,
+      source_table: 'batches',
+      source_record_id: batchId,
+      record_type: 'schedule_batch',
+      relationship: 'related',
+      linked_by_user_id: req.user.id,
+    }).select('id, workspace_id, service_id, source_table, source_record_id, record_type, relationship, created_at').single();
+    if (linkError || !link) throw new ApiError(500, 'RECORD_LINK_FAILED', linkError?.message || 'Continuum could not link the Schedule batch');
+
+    const now = new Date().toISOString();
+    await supabase.from('continuum_workflow_runs').insert({
+      workspace_id: workspaceId,
+      service_id: scheduleService.id,
+      action_key: 'handoff_to_schedule',
+      status: 'succeeded',
+      input_snapshot: { source_session_id: sourceSessionId || null },
+      result_snapshot: { batch_id: batch.id, batch_title: batch.title, total_slots: batch.total_slots, status: batch.status },
+      source_table: 'batches',
+      source_record_id: batch.id,
+      initiated_by_user_id: req.user.id,
+      started_at: now,
+      completed_at: now,
+    });
+
+    await logAuditEvent('continuum_schedule_batch_linked', 'batch', batch.id, {
+      source: 'slot_booking', workspace_id: workspaceId, source_session_id: sourceSessionId || null, total_slots: batch.total_slots,
+    }, req.user.id);
+
+    return res.status(201).json({ success: true, data: link });
+  } catch (error: any) {
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      error: { code: error.code || 'RECORD_LINK_FAILED', message: error.message || 'The Schedule batch could not be linked' },
+    });
+  }
+});
+
 export default router;

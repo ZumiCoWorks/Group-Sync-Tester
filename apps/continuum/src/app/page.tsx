@@ -14,7 +14,6 @@ import {
   LogIn,
   LogOut,
   MapPin,
-  MonitorPlay,
   Settings2,
   RefreshCcw,
   ShieldCheck,
@@ -28,6 +27,7 @@ import {
   createContinuumAccessGrant,
   createContinuumGroupSession,
   createContinuumWorkspace,
+  linkContinuumGroupSession,
   loadContinuumOverview,
   revokeContinuumAccessGrant,
   updateContinuumWorkspaceService,
@@ -52,10 +52,10 @@ const serviceUrls = {
 };
 
 const navigation: Array<{ id: OperationalView; label: string; detail: string; icon: typeof LayoutDashboard }> = [
-  { id: 'overview', label: 'Live overview', detail: 'Current source-owned records', icon: LayoutDashboard },
-  { id: 'setup', label: 'Workspace setup', detail: 'Inputs, services and lineage', icon: Settings2 },
-  { id: 'groups', label: 'Group Sync', detail: 'Sessions, teams and participants', icon: Users },
-  { id: 'schedule', label: 'Schedule', detail: 'Batches, slots and bookings', icon: CalendarDays },
+  { id: 'overview', label: 'Start', detail: 'Live connected services', icon: LayoutDashboard },
+  { id: 'setup', label: 'Sandbox', detail: 'School scope and access', icon: Settings2 },
+  { id: 'groups', label: 'Teams → slots', detail: 'Group Sync to Slot Booking', icon: Users },
+  { id: 'schedule', label: 'Bookings', detail: 'Live batches and slots', icon: CalendarDays },
   { id: 'spaces', label: 'Spaces & Resources', detail: 'Your operational requests', icon: MapPin },
 ];
 
@@ -90,6 +90,8 @@ export default function ContinuumOperationalPage() {
   const [loadError, setLoadError] = useState('');
   const [sessionName, setSessionName] = useState('');
   const [creating, setCreating] = useState(false);
+  const [selectedGroupSessionId, setSelectedGroupSessionId] = useState('');
+  const [linkingSessionId, setLinkingSessionId] = useState('');
   const [actionNotice, setActionNotice] = useState('');
   const [actionError, setActionError] = useState(false);
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState('');
@@ -189,6 +191,24 @@ export default function ContinuumOperationalPage() {
       setActionNotice(error instanceof Error ? error.message : 'The Group Sync session could not be created.');
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function linkExistingSession(sessionId: string) {
+    if (!session || !selectedWorkspaceId) return;
+    setLinkingSessionId(sessionId);
+    setActionNotice('');
+    setActionError(false);
+    try {
+      await linkContinuumGroupSession(session.access_token, selectedWorkspaceId, sessionId);
+      setSelectedGroupSessionId(sessionId);
+      setActionNotice('The existing Group Sync session is now linked to this Continuum workspace. Its source data remains in Group Sync.');
+      await loadOverview(session);
+    } catch (error) {
+      setActionError(true);
+      setActionNotice(error instanceof Error ? error.message : 'The Group Sync session could not be linked.');
+    } finally {
+      setLinkingSessionId('');
     }
   }
 
@@ -309,9 +329,8 @@ export default function ContinuumOperationalPage() {
         <button type="button" className={styles.lockup} onClick={() => setView('overview')} aria-label="AFDA Continuum live overview">
           <Image src="/brand/afda-continuum-horizontal.svg" alt="AFDA Continuum" width={210} height={63} priority/>
         </button>
-        <span className={styles.productTitle}>Operational platform</span>
+        <span className={styles.productTitle}>Connected learning services</span>
         <div className={styles.productActions}>
-          <a href="/presentation"><MonitorPlay size={16}/> Conference prototype</a>
           <span className={styles.liveBadge}><span/> Live source data</span>
           <div className={styles.identity}>
             <span className={styles.avatar}>{initials(profile?.first_name, profile?.last_name, session.user.email)}</span>
@@ -323,7 +342,7 @@ export default function ContinuumOperationalPage() {
 
       <div className={styles.appFrame}>
         <aside className={styles.sidebar}>
-          <div className={styles.railHeading}><span>Continuum services</span><strong>{sourceCount} of 3 sources available</strong></div>
+          <div className={styles.railHeading}><span>Connected services</span><strong>{sourceCount} of 3 sources available</strong></div>
           <nav className={styles.navigation} aria-label="Operational platform">
             {navigation.map(({ id, label, detail, icon: Icon }) => (
               <button key={id} type="button" className={view === id ? styles.active : undefined} onClick={() => setView(id)} aria-current={view === id ? 'page' : undefined}>
@@ -340,14 +359,14 @@ export default function ContinuumOperationalPage() {
         <main className={styles.workspace}>
           <header className={styles.contextBar}>
             <div><span>Scope</span><strong>{selectedWorkspace?.name || 'Institution-wide source records'}</strong></div>
-            <div><span>BCom mapping</span><strong>{overview?.mapping.bcom.replaceAll('_', ' ') || 'Not configured'}</strong></div>
+            <div><span>Sandbox status</span><strong>{overview?.mapping.bcom.replaceAll('_', ' ') || 'Not configured'}</strong></div>
             <button type="button" onClick={() => session && loadOverview(session)} disabled={loading}><RefreshCcw className={loading ? styles.spinning : undefined} size={15}/>{loading ? 'Refreshing' : 'Refresh live data'}</button>
           </header>
           <div className={styles.content}>
             {loadError ? <ErrorNotice message={loadError}/> : null}
             {view === 'overview' ? <Overview overview={overview} loading={loading} onNavigate={setView}/> : null}
             {view === 'setup' ? <WorkspaceSetupView overview={overview} selectedWorkspaceId={selectedWorkspaceId} institutionName={institutionName} institutionShortName={institutionShortName} workspaceName={workspaceName} schoolCode={schoolCode} academicPeriod={academicPeriod} academicYear={academicYear} periodStart={periodStart} periodEnd={periodEnd} programmeLabel={programmeLabel} grantEmail={grantEmail} grantReason={grantReason} grantExpiresAt={grantExpiresAt} busy={setupBusy} notice={setupNotice} noticeError={setupError} onSelectWorkspace={setSelectedWorkspaceId} onInstitutionName={setInstitutionName} onInstitutionShortName={setInstitutionShortName} onWorkspaceName={setWorkspaceName} onSchoolCode={setSchoolCode} onAcademicPeriod={setAcademicPeriod} onAcademicYear={setAcademicYear} onPeriodStart={setPeriodStart} onPeriodEnd={setPeriodEnd} onProgrammeLabel={setProgrammeLabel} onGrantEmail={setGrantEmail} onGrantReason={setGrantReason} onGrantExpiresAt={setGrantExpiresAt} onCreateWorkspace={createWorkspace} onSetService={setWorkspaceService} onGrantAccess={grantWorkspaceAccess} onRevokeAccess={revokeWorkspaceAccess}/> : null}
-            {view === 'groups' ? <GroupSyncView records={overview?.group_sync || []} source={overview?.sources.group_sync} workspaces={overview?.orchestration.workspaces || []} services={overview?.orchestration.services || []} enabledServices={overview?.orchestration.enabled_services || []} selectedWorkspaceId={selectedWorkspaceId} sessionName={sessionName} creating={creating} notice={actionNotice} noticeError={actionError} canManage={canManageGroupSync} onWorkspace={setSelectedWorkspaceId} onName={setSessionName} onCreate={createSession}/> : null}
+            {view === 'groups' ? <GroupSyncView records={overview?.group_sync || []} source={overview?.sources.group_sync} workspaces={overview?.orchestration.workspaces || []} services={overview?.orchestration.services || []} enabledServices={overview?.orchestration.enabled_services || []} selectedWorkspaceId={selectedWorkspaceId} selectedSessionId={selectedGroupSessionId} sessionName={sessionName} creating={creating} linkingSessionId={linkingSessionId} notice={actionNotice} noticeError={actionError} canManage={canManageGroupSync} onWorkspace={setSelectedWorkspaceId} onSelectSession={setSelectedGroupSessionId} onName={setSessionName} onCreate={createSession} onLink={linkExistingSession}/> : null}
             {view === 'schedule' ? <ScheduleView records={overview?.schedule || []} source={overview?.sources.schedule}/> : null}
             {view === 'spaces' ? <SpacesView records={overview?.spaces || []} source={overview?.sources.spaces}/> : null}
           </div>
@@ -402,8 +421,8 @@ function Overview({ overview, loading, onNavigate }: { overview: ContinuumOvervi
   }, [overview]);
 
   return <>
-    <PageHeading eyebrow="Live operational view" title="Existing services, one governed entry point." copy="Continuum is reading current records from the canonical backend. It does not copy ownership or infer a BCom relationship that has not been configured."/>
-    <section className={styles.mappingNotice}><ShieldCheck size={20}/><span><strong>BCom mapping is deliberately not inferred.</strong><small>{overview?.mapping.explanation || 'Waiting for the live platform response.'}</small></span><a href="/presentation">View the fictional BCom proposal <ExternalLink size={13}/></a></section>
+    <PageHeading eyebrow="Live operational view" title="Existing services, one governed entry point." copy="Continuum is reading current records from the canonical backend. It does not copy ownership or infer a workspace relationship that has not been configured."/>
+    <section className={styles.mappingNotice}><ShieldCheck size={20}/><span><strong>Source relationships are explicit.</strong><small>{overview?.mapping.explanation || 'Waiting for the live platform response.'}</small></span><button type="button" onClick={() => onNavigate('groups')}>Bring in Group Sync teams <ArrowRight size={13}/></button></section>
     <div className={styles.sourceGrid}>
       <SourceCard name="Group Sync" copy="Sessions, generated groups and participants" source={overview?.sources.group_sync} count={overview?.group_sync.length || 0} onOpen={() => onNavigate('groups')}/>
       <SourceCard name="Schedule" copy="Batches, slots, bookings and attendance" source={overview?.sources.schedule} count={overview?.schedule.length || 0} onOpen={() => onNavigate('schedule')}/>
@@ -506,7 +525,7 @@ function WorkspaceSetupView({ overview, selectedWorkspaceId, institutionName, in
         <span><strong>{grant.user?.email || 'Current staff identity'}</strong><small>{grant.capabilities.join(', ').replaceAll('_', ' ')} · {grant.reason}</small></span>
         <span><strong>{grant.active ? 'Active' : grant.revoked_at ? 'Revoked' : 'Expired'}</strong><small>{grant.expires_at ? `Until ${formatDate(grant.expires_at, true)}` : 'No expiry'}</small></span>
         {admin && grant.active ? <button type="button" disabled={Boolean(busy)} onClick={() => onRevokeAccess(grant.id)}>{busy === grant.id ? 'Revoking…' : 'Revoke'}</button> : null}
-      </div>) : <EmptyState title="No scoped access grants" copy="Grant a fictional lecturer, tutor or ad hoc assessor access after their canonical staff profile exists."/>}
+      </div>) : <EmptyState title="No scoped access grants" copy="Grant an existing lecturer, tutor or ad hoc assessor access after their canonical staff profile exists."/>}
     </section>
 
     <section className={styles.panel}>
@@ -516,21 +535,79 @@ function WorkspaceSetupView({ overview, selectedWorkspaceId, institutionName, in
   </>;
 }
 
-function GroupSyncView({ records, source, workspaces, services, enabledServices, selectedWorkspaceId, sessionName, creating, notice, noticeError, canManage, onWorkspace, onName, onCreate }: { records: GroupSyncRecord[]; source?: SourceState; workspaces: ContinuumWorkspace[]; services: ContinuumService[]; enabledServices: ContinuumWorkspaceService[]; selectedWorkspaceId: string; sessionName: string; creating: boolean; notice: string; noticeError: boolean; canManage: boolean; onWorkspace: (value: string) => void; onName: (value: string) => void; onCreate: (event: React.FormEvent) => void }) {
+function GroupSyncView({ records, source, workspaces, services, enabledServices, selectedWorkspaceId, selectedSessionId, sessionName, creating, linkingSessionId, notice, noticeError, canManage, onWorkspace, onSelectSession, onName, onCreate, onLink }: {
+  records: GroupSyncRecord[];
+  source?: SourceState;
+  workspaces: ContinuumWorkspace[];
+  services: ContinuumService[];
+  enabledServices: ContinuumWorkspaceService[];
+  selectedWorkspaceId: string;
+  selectedSessionId: string;
+  sessionName: string;
+  creating: boolean;
+  linkingSessionId: string;
+  notice: string;
+  noticeError: boolean;
+  canManage: boolean;
+  onWorkspace: (value: string) => void;
+  onSelectSession: (value: string) => void;
+  onName: (value: string) => void;
+  onCreate: (event: React.FormEvent) => void;
+  onLink: (sessionId: string) => void;
+}) {
+  const [bookingUnit, setBookingUnit] = useState<'teams' | 'participants'>('teams');
   const groupService = services.find((service) => service.service_type === 'groups');
-  const enabled = Boolean(groupService && enabledServices.some((item) => item.workspace_id === selectedWorkspaceId && item.service_id === groupService.id && item.enabled));
+  const scheduleService = services.find((service) => service.service_type === 'schedule');
+  const groupsEnabled = Boolean(groupService && enabledServices.some((item) => item.workspace_id === selectedWorkspaceId && item.service_id === groupService.id && item.enabled));
+  const scheduleEnabled = Boolean(scheduleService && enabledServices.some((item) => item.workspace_id === selectedWorkspaceId && item.service_id === scheduleService.id && item.enabled));
+  const selectedRecord = records.find((record) => record.id === selectedSessionId && record.continuum_workspace_id === selectedWorkspaceId) || null;
+  const selectedWorkspace = workspaces.find((workspace) => workspace.id === selectedWorkspaceId);
+  const targetSlotCount = selectedRecord ? (bookingUnit === 'teams' ? selectedRecord.group_count : selectedRecord.participant_count) : 0;
+  const scheduleHandoff = selectedRecord && serviceUrls.schedule ? `${serviceUrls.schedule.replace(/\/$/, '')}/editor/new?${new URLSearchParams({
+    source: 'continuum',
+    title: `${selectedRecord.name || selectedRecord.code} booking slots`,
+    description: `Continuum handoff from Group Sync session ${selectedRecord.code}. Source scope: ${bookingUnit}.`,
+    targetSlots: String(targetSlotCount),
+    workspace: selectedWorkspace?.name || '',
+    workspaceId: selectedWorkspaceId,
+    sessionCode: selectedRecord.code,
+    sessionId: selectedRecord.id,
+  }).toString()}` : '';
   return <>
-    <PageHeading eyebrow="Existing service · write-through enabled" title="Group Sync" copy="Create a real grouping session and inspect the current sessions already owned by Group Sync." action={serviceUrls.groups ? <a className={styles.secondaryAction} href={serviceUrls.groups} target="_blank" rel="noreferrer">Open Group Sync <ExternalLink size={14}/></a> : null}/>
-    <section className={styles.createSurface}><div><span>Governed input</span><h2>Create a Group Sync session</h2><p>Continuum records this input, writes to <code>sync_sessions</code>, links the result to the selected workspace and appends an audit event.</p></div><form onSubmit={onCreate}><label htmlFor="group-workspace">Workspace</label><select id="group-workspace" value={selectedWorkspaceId} onChange={(event) => onWorkspace(event.target.value)} required><option value="">Select a configured workspace</option>{workspaces.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.name}</option>)}</select><label htmlFor="session-name">Session name</label><div><input id="session-name" value={sessionName} onChange={(event) => onName(event.target.value)} placeholder="e.g. Venture Lab team formation" minLength={3} maxLength={120} required/><button type="submit" disabled={creating || !source?.available || !enabled || !canManage}>{creating ? <LoaderCircle className={styles.spinning} size={15}/> : <Users size={15}/>} Create traced session</button></div>{selectedWorkspaceId && !enabled ? <small>Enable Group Sync for this workspace in Workspace setup first.</small> : null}{selectedWorkspaceId && enabled && !canManage ? <small>Your account needs an active Group Sync capability grant for this workspace.</small> : null}</form></section>
+    <PageHeading eyebrow="Real source workflow" title="Bring teams from Group Sync into Slot Booking." copy="Select an existing source session, link it to a workspace, then continue in Slot Booking with the actual team or participant count prefilled." action={serviceUrls.groups ? <a className={styles.secondaryAction} href={serviceUrls.groups} target="_blank" rel="noreferrer">Open Group Sync <ExternalLink size={14}/></a> : null}/>
     {notice ? <ActionNotice message={notice} error={noticeError}/> : null}
-    <RecordHeader title="Current Group Sync sessions" count={records.length} source={source}/>
-    <div className={styles.recordList}>{records.length ? records.map((record) => <GroupRow key={record.id} record={record}/>) : <EmptyState title="No Group Sync sessions found" copy="Create the first live session above, or open Group Sync directly."/>}</div>
+
+    <section className={styles.handoffPanel}>
+      <div className={styles.handoffHeading}><span>1</span><div><h2>Select the real source</h2><p>Nothing is copied yet. Choose the workspace and one of the sessions returned by Group Sync.</p></div></div>
+      <label className={styles.handoffWorkspace}><span>Continuum workspace</span><select value={selectedWorkspaceId} onChange={(event) => { onWorkspace(event.target.value); onSelectSession(''); }} required><option value="">Select a configured workspace</option>{workspaces.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.name}</option>)}</select></label>
+      {!groupsEnabled && selectedWorkspaceId ? <div className={styles.inlineWarning}>Group Sync is not enabled for this workspace. Enable it in Workspace setup first.</div> : null}
+      <RecordHeader title="Sessions available from Group Sync" count={records.length} source={source}/>
+      <div className={styles.recordList}>{records.length ? records.map((record) => <GroupRow key={record.id} record={record} workspaceId={selectedWorkspaceId} workspaceName={selectedWorkspace?.name || 'workspace'} linking={linkingSessionId === record.id} disabled={!selectedWorkspaceId || !groupsEnabled || !canManage} onLink={() => onLink(record.id)} onSelect={() => onSelectSession(record.id)}/>) : <EmptyState title="No Group Sync sessions found" copy="Create the first live session in Group Sync, then refresh Continuum."/>}</div>
+    </section>
+
+    <section className={styles.handoffPanel} data-muted={!selectedRecord}>
+      <div className={styles.handoffHeading}><span>2</span><div><h2>Continue the work in Slot Booking</h2><p>{selectedRecord ? `${selectedRecord.name || selectedRecord.code} has ${selectedRecord.group_count} teams and ${selectedRecord.participant_count} participants in Group Sync. Choose the booking unit and Continuum will prefill Slot Booking.` : 'First bring a Group Sync session into the workspace. Continuum will then hand its actual counts to Slot Booking.'}</p></div></div>
+      <div className={styles.handoffChoice}>
+        <div><span>Who needs a slot?</span><div><button type="button" data-active={bookingUnit === 'teams'} onClick={() => setBookingUnit('teams')}>Teams <strong>{selectedRecord?.group_count || 0}</strong></button><button type="button" data-active={bookingUnit === 'participants'} onClick={() => setBookingUnit('participants')}>Individual participants <strong>{selectedRecord?.participant_count || 0}</strong></button></div></div>
+        {scheduleHandoff && scheduleEnabled && targetSlotCount > 0 ? <a href={scheduleHandoff}>Open Slot Booking with {targetSlotCount} slots <ArrowRight size={14}/></a> : <button type="button" disabled>Open Slot Booking</button>}
+      </div>
+      {selectedRecord && targetSlotCount < 1 ? <div className={styles.inlineWarning}>This session has no {bookingUnit === 'teams' ? 'generated teams' : 'participants'} yet. Complete that work in Group Sync, then refresh Continuum.</div> : null}
+      {selectedRecord && !scheduleEnabled ? <div className={styles.inlineWarning}>Schedule is not enabled for this workspace. Enable it in Workspace setup before continuing.</div> : null}
+      {!serviceUrls.schedule ? <div className={styles.inlineWarning}>The Slot Booking URL is not configured in this Continuum deployment.</div> : null}
+    </section>
+
+    <details className={styles.alternativeFlow}>
+      <summary>There is no Group Sync session yet</summary>
+      <section className={styles.createSurface}><div><span>Optional source input</span><h2>Create a new Group Sync session</h2><p>Use this only when the team-formation session does not already exist. Continuum writes it to <code>sync_sessions</code> and links the result.</p></div><form onSubmit={onCreate}><label htmlFor="session-name">Session name</label><div><input id="session-name" value={sessionName} onChange={(event) => onName(event.target.value)} placeholder="e.g. Venture Lab team formation" minLength={3} maxLength={120} required/><button type="submit" disabled={creating || !source?.available || !groupsEnabled || !canManage}>{creating ? <LoaderCircle className={styles.spinning} size={15}/> : <Users size={15}/>} Create in Group Sync</button></div></form></section>
+    </details>
   </>;
 }
 
-function GroupRow({ record }: { record: GroupSyncRecord }) {
+function GroupRow({ record, workspaceId, workspaceName, linking, disabled, onLink, onSelect }: { record: GroupSyncRecord; workspaceId: string; workspaceName: string; linking: boolean; disabled: boolean; onLink: () => void; onSelect: () => void }) {
   const href = serviceUrls.groups ? `${serviceUrls.groups.replace(/\/$/, '')}/room/${record.code}?host=true` : '';
-  return <article className={styles.recordRow}><span className={styles.recordIcon}><Users size={17}/></span><span><strong>{record.name || 'Group Sync session'}</strong><small>Code {record.code} · {record.participant_count} participants · {record.group_count} groups</small></span><span className={styles.status}>{record.status}</span><time>{formatDate(record.updated_at, true)}</time>{href ? <a href={href} target="_blank" rel="noreferrer" aria-label={`Open ${record.name || record.code} in Group Sync`}><ExternalLink size={15}/></a> : <span/>}</article>;
+  const linkedHere = Boolean(workspaceId && record.continuum_workspace_id === workspaceId);
+  const linkedElsewhere = Boolean(record.continuum_workspace_id && !linkedHere);
+  return <article className={styles.groupSourceRow}><span className={styles.recordIcon}><Users size={17}/></span><span><strong>{record.name || 'Group Sync session'}</strong><small>Code {record.code} · {record.participant_count} participants · {record.group_count} teams · updated {formatDate(record.updated_at, true)}</small></span><span className={styles.status}>{record.status}</span>{linkedHere ? <button type="button" onClick={onSelect} disabled={record.group_count < 1 && record.participant_count < 1}>Continue with source <ArrowRight size={13}/></button> : <button type="button" onClick={onLink} disabled={disabled || linkedElsewhere}>{linking ? <LoaderCircle className={styles.spinning} size={14}/> : <Link2 size={14}/>} {linkedElsewhere ? 'Linked elsewhere' : `Bring into ${workspaceName}`}</button>}{href ? <a href={href} target="_blank" rel="noreferrer" aria-label={`Open ${record.name || record.code} in Group Sync`}><ExternalLink size={15}/></a> : <span/>}</article>;
 }
 
 function ScheduleView({ records, source }: { records: ScheduleRecord[]; source?: SourceState }) {

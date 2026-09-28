@@ -78,7 +78,7 @@
 .mappingNotice strong, .mappingNotice small, .errorNotice strong, .errorNotice small { display: block; }
 .mappingNotice strong { font-size: 12px; }
 .mappingNotice small { margin-top: 4px; color: #73520f; font-size: 11px; line-height: 1.4; }
-.mappingNotice a { display: inline-flex; align-items: center; gap: 6px; color: var(--amber); font-size: 11px; font-weight: 800; }
+.mappingNotice button { display: inline-flex; min-height: 36px; align-items: center; gap: 6px; border: 1px solid #d6b664; border-radius: 999px; background: #fff; color: var(--amber); padding: 0 13px; font-size: 11px; font-weight: 800; white-space: nowrap; }
 .errorNotice { margin-bottom: 18px; background: #fff0f1; color: #a4151f; }
 .errorNotice small { margin-top: 3px; font-size: 11px; }
 .actionNotice { margin: 15px 0; background: var(--green-soft); color: #0f684e; font-size: 12px; font-weight: 700; }
@@ -135,6 +135,40 @@
 .createSurface select { width: 100%; margin-bottom: 12px; }
 .createSurface form small { display: block; margin-top: 8px; color: #ffcf92; font-size: 10px; }
 .createSurface button { display: inline-flex; min-height: 44px; align-items: center; gap: 7px; border: 0; border-radius: 999px; background: #fff; color: var(--ink); padding: 0 16px; font-size: 11px; font-weight: 800; }
+.handoffPanel { margin-top: 18px; overflow: hidden; border: 1px solid var(--line); border-radius: 18px; background: #fff; }
+.handoffPanel[data-muted='true'] { background: #faf9fb; }
+.handoffHeading { display: flex; align-items: center; gap: 13px; padding: 18px; border-bottom: 1px solid var(--line); }
+.handoffHeading > span { display: grid; width: 34px; height: 34px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: var(--ink); color: #fff; font-size: 12px; font-weight: 850; }
+.handoffHeading h2 { margin: 0; font-size: 18px; letter-spacing: -.02em; }
+.handoffHeading p { margin: 4px 0 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+.handoffWorkspace { display: grid; grid-template-columns: 180px minmax(240px, 460px); align-items: center; gap: 14px; padding: 15px 18px; border-bottom: 1px solid var(--line); }
+.handoffWorkspace > span, .scheduleHandoffForm label > span { color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.handoffWorkspace select, .scheduleHandoffForm input { width: 100%; min-height: 42px; border: 1px solid #cbc8d2; border-radius: 10px; background: #fff; color: var(--ink); padding: 0 11px; font-size: 12px; }
+.handoffPanel .recordHeader { margin-top: 0; padding: 12px 18px; border-bottom: 1px solid var(--line); }
+.handoffPanel .recordList { border: 0; border-radius: 0; }
+.groupSourceRow { display: grid; min-height: 78px; grid-template-columns: 40px minmax(220px, 1fr) auto minmax(145px, auto) 32px; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.groupSourceRow:last-child { border-bottom: 0; }
+.groupSourceRow strong, .groupSourceRow small { display: block; }
+.groupSourceRow strong { font-size: 12px; }
+.groupSourceRow small { margin-top: 4px; color: var(--muted); font-size: 10px; line-height: 1.4; }
+.groupSourceRow > button { display: inline-flex; min-height: 36px; align-items: center; justify-content: center; gap: 6px; border: 1px solid #cbc8d2; border-radius: 999px; background: #fff; color: var(--ink); padding: 0 12px; font-size: 10px; font-weight: 800; white-space: nowrap; }
+.groupSourceRow > button:hover:not(:disabled) { border-color: var(--ink); }
+.groupSourceRow > a { display: grid; width: 32px; height: 32px; place-items: center; border-radius: 50%; color: var(--ink); }
+.groupSourceRow > a:hover { background: var(--soft); color: var(--red); }
+.handoffChoice { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; padding: 18px; }
+.handoffChoice > div > span { display: block; margin-bottom: 7px; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.handoffChoice > div > div { display: flex; gap: 8px; }
+.handoffChoice > div button { display: inline-flex; min-height: 42px; align-items: center; gap: 9px; border: 1px solid #cbc8d2; border-radius: 11px; background: #fff; color: var(--ink); padding: 0 13px; font-size: 11px; font-weight: 750; }
+.handoffChoice > div button[data-active='true'] { border-color: var(--ink); background: var(--ink); color: #fff; }
+.handoffChoice > div button strong { display: grid; min-width: 24px; height: 24px; place-items: center; border-radius: 999px; background: var(--soft); color: var(--ink); font-size: 10px; }
+.handoffChoice > a, .handoffChoice > button { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 7px; border: 0; border-radius: 999px; background: var(--red); color: #fff; padding: 0 17px; font-size: 11px; font-weight: 850; text-decoration: none; white-space: nowrap; }
+.scheduleHandoffForm { display: grid; grid-template-columns: minmax(220px, 1.3fr) minmax(145px, .7fr) minmax(145px, .7fr) minmax(135px, .6fr) auto; align-items: end; gap: 12px; padding: 18px; }
+.scheduleHandoffForm label { display: grid; gap: 6px; }
+.scheduleHandoffForm > button { display: inline-flex; min-height: 42px; align-items: center; justify-content: center; gap: 7px; border: 0; border-radius: 999px; background: var(--ink); color: #fff; padding: 0 15px; font-size: 10px; font-weight: 800; white-space: nowrap; }
+.inlineWarning { margin: 12px 18px 16px; border-radius: 10px; background: var(--amber-soft); color: var(--amber); padding: 11px 13px; font-size: 10px; line-height: 1.45; }
+.alternativeFlow { margin-top: 18px; }
+.alternativeFlow > summary { cursor: pointer; color: var(--muted); font-size: 11px; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
+.alternativeFlow[open] > summary { margin-bottom: 12px; }
 .setupGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .setupPanel { overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: #fff; }
 .setupForm { display: grid; gap: 13px; padding: 18px; }
@@ -242,7 +276,7 @@
   .pageHeading { align-items: flex-start; flex-direction: column; }
   .pageHeading h1 { font-size: 34px; }
   .mappingNotice { align-items: flex-start; flex-wrap: wrap; }
-  .mappingNotice a { width: 100%; }
+  .mappingNotice button { width: 100%; justify-content: center; }
   .focusSurface, .createSurface, .authCard { grid-template-columns: 1fr; }
   .setupGrid { grid-template-columns: 1fr; }
   .formColumns { grid-template-columns: 1fr; }
@@ -257,6 +291,15 @@
   .focusSurface > div { min-height: 190px; }
   .createSurface { gap: 22px; }
   .createSurface form > div { grid-template-columns: 1fr; }
+  .handoffWorkspace, .scheduleHandoffForm { grid-template-columns: 1fr; }
+  .scheduleHandoffForm > button { width: 100%; }
+  .handoffChoice { align-items: stretch; flex-direction: column; }
+  .handoffChoice > div > div { align-items: stretch; flex-direction: column; }
+  .handoffChoice > a, .handoffChoice > button { width: 100%; }
+  .groupSourceRow { grid-template-columns: 40px minmax(0, 1fr) auto; }
+  .groupSourceRow > .status { grid-column: 2; }
+  .groupSourceRow > button { grid-column: 2; justify-self: start; }
+  .groupSourceRow > a, .groupSourceRow > span:last-child { grid-column: 3; grid-row: 1 / span 3; }
   .recordRow { grid-template-columns: 40px minmax(0,1fr) auto; }
   .recordRow time { grid-column: 2; text-align: left; }
   .recordRow > a, .recordRow > span:last-child { grid-column: 3; grid-row: 1 / span 2; }

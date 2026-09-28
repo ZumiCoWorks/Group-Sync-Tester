@@ -56,7 +56,7 @@ export default function ConferenceDeckPage() {
     <div className={styles.stage} aria-live="polite">
       <section className={`${styles.slide} ${styles.opening}`} hidden={active !== 0}>
         <Image src="/brand/afda-continuum-wordmark.svg" alt="AFDA Continuum" width={680} height={382} priority/>
-        <div><h1>A governed learning ecosystem for AFDA.</h1><p>Conference prototype · BCom configured pilot · fictional demonstration data</p></div>
+        <div><h1>A governed learning ecosystem for AFDA.</h1><p>Conference concept · BCom configured pilot · live product demonstration</p></div>
       </section>
 
       <section className={styles.slide} hidden={active !== 1}>

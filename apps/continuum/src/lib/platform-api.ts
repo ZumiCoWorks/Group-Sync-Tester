@@ -275,3 +275,19 @@ export function createContinuumGroupSession(token: string, workspaceId: string, 
     body: JSON.stringify({ workspace_id: workspaceId, name }),
   });
 }
+
+export function linkContinuumGroupSession(token: string, workspaceId: string, sessionId: string) {
+  return apiRequest<{
+    id: string;
+    workspace_id: string;
+    service_id: string;
+    source_table: 'sync_sessions';
+    source_record_id: string;
+    record_type: string;
+    relationship: string;
+    created_at: string;
+  }>(`/api/continuum/group-sync/sessions/${sessionId}/link`, token, {
+    method: 'POST',
+    body: JSON.stringify({ workspace_id: workspaceId }),
+  });
+}
