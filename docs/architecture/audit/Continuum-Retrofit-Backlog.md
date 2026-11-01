@@ -4,7 +4,9 @@ This backlog is ordered by dependency. It is a planning artifact, not authorizat
 
 **Evidence date:** 29 October 2026
 
-The first dependency-ready task is **RB-000**. It is documentation/security-design work only and can be completed locally without changing application code. Live containment and remediation then begin with RB-001 through RB-006 under the named owners.
+The first dependency-ready task is **RB-000**. Its draft review packet is now available in [`../security/ENDPOINT_AUTHORIZATION_MATRIX.md`](../security/ENDPOINT_AUTHORIZATION_MATRIX.md), with the execution sequence in [`../CONTINUUM_RETROFIT_SPRINT_1.md`](../CONTINUUM_RETROFIT_SPRINT_1.md). RB-000 remains open until the named security, application and DevOps owners approve or amend the proposed boundaries. Live containment and remediation then continue through RB-001 to RB-006 under the named owners.
+
+RB-004 now has a review-only [`Group Sync RLS remediation package`](../security/GROUP_SYNC_RLS_REMEDIATION.md), [access test matrix](../security/GROUP_SYNC_RLS_TEST_MATRIX.md), and non-executable [SQL draft](../security/sql/DRAFT_010_group_sync_deny_direct_access.sql). It remains `BLOCKED-OWNER`: no database change has been applied, and RB-006 migration authority plus DBA/backup/rollback approval are prerequisites.
 
 ## Status vocabulary
 

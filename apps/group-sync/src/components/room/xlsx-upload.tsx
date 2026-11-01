@@ -22,6 +22,7 @@ interface XLSXUploadProps {
 }
 
 export function XLSXUpload({ isOpen, onClose, onUploadFile, onPopulateLobby }: XLSXUploadProps) {
+    const demoPopulateEnabled = process.env.NEXT_PUBLIC_GROUP_SYNC_ENABLE_DEMO_POPULATE === 'true';
     const [students, setStudents] = useState<any[]>([]);
     const [summary, setSummary] = useState<any>(null);
     const [isUploading, setIsUploading] = useState(false);
@@ -171,23 +172,25 @@ export function XLSXUpload({ isOpen, onClose, onUploadFile, onPopulateLobby }: X
                             </div>
 
                             <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                                <Button
-                                    onClick={handlePopulate}
-                                    disabled={isPopulating}
-                                    className="flex-grow py-5 bg-rose-500 text-white font-semibold hover:bg-rose-600 rounded-xl"
-                                >
-                                    {isPopulating ? (
-                                        <>
-                                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                                            Populating Lobby...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Play className="w-5 h-5 mr-2" />
-                                            Pre-Populate Lobby (For Demo/Testing)
-                                        </>
-                                    )}
-                                </Button>
+                                {demoPopulateEnabled ? (
+                                    <Button
+                                        onClick={handlePopulate}
+                                        disabled={isPopulating}
+                                        className="flex-grow py-5 bg-rose-500 text-white font-semibold hover:bg-rose-600 rounded-xl"
+                                    >
+                                        {isPopulating ? (
+                                            <>
+                                                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                                                Populating Lobby...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Play className="w-5 h-5 mr-2" />
+                                                Pre-Populate Lobby (For Demo/Testing)
+                                            </>
+                                        )}
+                                    </Button>
+                                ) : null}
                                 <Button
                                     variant="outline"
                                     onClick={handleClose}

@@ -5,24 +5,68 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Navbar } from '@/components/shared/navbar';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { Session } from '@supabase/supabase-js';
+import { supabase } from '@/utils/supabase';
 
 export default function Home() {
   const router = useRouter();
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState('');
+  const [session, setSession] = useState<Session | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+
+  useEffect(() => {
+    let mounted = true;
+    void supabase.auth.getSession().then(({ data }) => {
+      if (!mounted) return;
+      setSession(data.session);
+      setAuthReady(true);
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      if (mounted) setSession(nextSession);
+    });
+    return () => {
+      mounted = false;
+      listener.subscription.unsubscribe();
+    };
+  }, []);
+
+  const signIn = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setIsSigningIn(true);
+    setError('');
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+    if (signInError) setError(signInError.message);
+    setIsSigningIn(false);
+  };
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    setError('');
+  };
 
   const createSession = async () => {
     setIsCreating(true);
     setError('');
 
     try {
+      if (!session?.access_token) {
+        throw new Error('Sign in with an approved staff account before hosting a room.');
+      }
       const response = await fetch(`${backendUrl}/api/group-sync/session`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
           name: 'Group Sync Session',
@@ -61,10 +105,33 @@ export default function Home() {
           </div>
         )}
 
+        {authReady && !session ? (
+          <form onSubmit={signIn} className="mx-auto mb-8 max-w-md space-y-3 rounded-3xl border border-muted bg-card p-5 text-left shadow-sm">
+            <div>
+              <h2 className="font-headline text-xl font-bold text-heading">Staff sign-in</h2>
+              <p className="mt-1 text-sm text-body">Hosting and managing rooms requires an approved AFDA staff account.</p>
+            </div>
+            <label className="block text-sm font-semibold text-heading" htmlFor="host-email">Email</label>
+            <input id="host-email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required className="w-full rounded-xl border border-muted bg-background px-4 py-3 text-heading" />
+            <label className="block text-sm font-semibold text-heading" htmlFor="host-password">Password</label>
+            <input id="host-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required className="w-full rounded-xl border border-muted bg-background px-4 py-3 text-heading" />
+            <Button type="submit" disabled={isSigningIn} className="w-full rounded-xl bg-heading text-white">
+              {isSigningIn ? 'Signing in…' : 'Sign in to host'}
+            </Button>
+          </form>
+        ) : null}
+
+        {session ? (
+          <div className="mb-6 flex items-center justify-center gap-3 text-sm text-body">
+            <span>Signed in as {session.user.email}</span>
+            <button type="button" onClick={signOut} className="font-semibold text-accent-creative underline">Sign out</button>
+          </div>
+        ) : null}
+
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Button
             onClick={createSession}
-            disabled={isCreating}
+            disabled={isCreating || !session}
             size="lg"
             className="w-full sm:w-auto px-10 py-7 bg-accent-creative text-white rounded-full font-bold text-lg hover:bg-accent-creative/90 transition-all flex items-center justify-center gap-3 shadow-2xl"
           >

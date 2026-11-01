@@ -16,7 +16,6 @@ import { Label } from '../ui/label';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { exportToPDF, exportToXLSX, copyGroupsToClipboard } from '@/lib/export-utils';
-import { supabase } from '@/utils/supabase';
 
 type HostViewProps = {
   sessionId: string;
@@ -30,6 +29,8 @@ type HostViewProps = {
   uploadRosterFile: (file: File) => Promise<{ students: any[]; summary: any; studentsCount: number }>;
   populateLobbyFromRoster: () => Promise<void>;
   onRemoveParticipant: (id: string) => Promise<void>;
+  onUpdateGroups: (groups: SyncSession['groups']) => Promise<void>;
+  onUpdateName: (name: string) => Promise<void>;
 };
 
 const getDisciplineHistory = (person: { discipline?: string | null; disciplines?: string[] | null }) => {
@@ -61,7 +62,9 @@ export function HostView({
   endSession,
   uploadRosterFile,
   populateLobbyFromRoster,
-  onRemoveParticipant
+  onRemoveParticipant,
+  onUpdateGroups,
+  onUpdateName,
 }: HostViewProps) {
   const [groupCount, setGroupCount] = useState(3);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -107,12 +110,7 @@ export function HostView({
     });
 
     try {
-      const { error } = await supabase
-        .from('sync_sessions')
-        .update({ groups: updatedGroups })
-        .eq('code', sessionId);
-
-      if (error) throw error;
+      await onUpdateGroups(updatedGroups);
       toast({ title: 'Reshuffle Completed', description: 'Successfully shuffled selected groups.' });
       setSelectedGroups([]);
     } catch (err: any) {
@@ -147,12 +145,7 @@ export function HostView({
         return g;
       });
 
-      const { error } = await supabase
-        .from('sync_sessions')
-        .update({ groups: updatedGroups })
-        .eq('code', sessionId);
-
-      if (error) throw error;
+      await onUpdateGroups(updatedGroups);
       toast({ title: 'Student Reassigned', description: `Moved ${memberToMove.name} to Group ${targetGroupIdx + 1}` });
     } catch (err) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to move student.' });
@@ -167,12 +160,7 @@ export function HostView({
     });
 
     try {
-      const { error } = await supabase
-        .from('sync_sessions')
-        .update({ groups: updatedGroups })
-        .eq('code', sessionId);
-
-      if (error) throw error;
+      await onUpdateGroups(updatedGroups);
 
       const match = participants.find(p => 
         (member.student_number && String(p.student_number).trim().toLowerCase() === String(member.student_number).trim().toLowerCase()) ||
@@ -268,12 +256,7 @@ export function HostView({
   const handleSaveName = async () => {
     if (!sessionName.trim()) return;
     try {
-      const { error } = await supabase
-        .from('sync_sessions')
-        .update({ name: sessionName.trim() })
-        .eq('code', sessionId);
-      
-      if (error) throw error;
+      await onUpdateName(sessionName.trim());
       setIsEditingName(false);
       toast({ title: 'Success', description: 'Session name updated' });
     } catch (error) {

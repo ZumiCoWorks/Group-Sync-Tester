@@ -3,6 +3,11 @@ import request from 'supertest';
 import bookingsRouter from './bookings';
 import { createBooking, ApiError } from '../db';
 
+jest.mock('../middleware', () => ({
+  verifyToken: (_req: unknown, _res: unknown, next: () => void) => next(),
+  requireRole: () => (_req: unknown, _res: unknown, next: () => void) => next(),
+}));
+
 jest.mock('../db', () => ({
   createBooking: jest.fn(),
   getSlotsByBatchId: jest.fn(),

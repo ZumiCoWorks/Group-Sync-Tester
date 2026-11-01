@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/utils/supabase';
 import type { SyncSession, SyncParticipant } from '@/types/shared';
 import { HostView } from '@/components/room/host-view';
@@ -31,28 +31,71 @@ export default function ClientPage({ sessionId, isHost }: ClientPageProps) {
   const [studentName, setStudentName] = useState('');
   const [myParticipantId, setMyParticipantId] = useState<string | null>(null);
   const [showUrlSettings, setShowUrlSettings] = useState(false);
+  const [hostAuthRequired, setHostAuthRequired] = useState(false);
 
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
 
-  // 1. Load initial data and set up real-time subscription
+  const getHostAccessToken = useCallback(async () => {
+    const { data } = await supabase.auth.getSession();
+    if (!data.session?.access_token) {
+      throw new Error('Sign in with the staff account that owns this session.');
+    }
+    return data.session.access_token;
+  }, []);
+
+  const hostFetch = useCallback(async (path: string, init: RequestInit = {}) => {
+    const token = await getHostAccessToken();
+    const headers = new Headers(init.headers);
+    headers.set('Authorization', `Bearer ${token}`);
+    return fetch(`${backendUrl}${path}`, { ...init, headers });
+  }, [backendUrl, getHostAccessToken]);
+
+  // Load only the view authorized for this browser. Polling avoids exposing the
+  // permissive database realtime channel directly to the frontend.
   useEffect(() => {
     let isMounted = true;
 
     const loadData = async () => {
       try {
-        setIsSessionLoading(true);
-        const response = await fetch(`${backendUrl}/api/group-sync/session/${sessionId}`);
+        const storedParticipantId = localStorage.getItem(`sync_participant_id:${sessionId}`);
+        let response: Response;
+        if (isHost) {
+          try {
+            response = await hostFetch(`/api/group-sync/session/${sessionId}/host`);
+            if (isMounted) setHostAuthRequired(false);
+          } catch {
+            if (isMounted) setHostAuthRequired(true);
+            return;
+          }
+        } else {
+          response = await fetch(`${backendUrl}/api/group-sync/session/${sessionId}`, {
+            headers: storedParticipantId ? { 'X-Group-Sync-Participant': storedParticipantId } : undefined,
+          });
+        }
         const result = await response.json();
-        
+
+        if (response.status === 401 || response.status === 403) {
+          if (isMounted && isHost) setHostAuthRequired(true);
+          return;
+        }
+
+        if (response.status === 404 && !isHost && storedParticipantId) {
+          localStorage.removeItem(`sync_participant_id:${sessionId}`);
+          if (isMounted) {
+            setMyParticipantId(null);
+            setIsJoined(false);
+            setStudentName('');
+          }
+          return;
+        }
+
         if (isMounted && response.ok && result.success) {
           const session = result.data.session;
           const parts = result.data.participants;
-          
+
           setSessionData(session);
           setParticipants(parts);
 
-          // Check if student has already joined previously in this browser session
-          const storedParticipantId = localStorage.getItem(`sync_participant_id:${sessionId}`);
           if (storedParticipantId) {
             const matchedParticipant = parts.find((p: any) => p.id === storedParticipantId);
             if (matchedParticipant) {
@@ -69,55 +112,14 @@ export default function ClientPage({ sessionId, isHost }: ClientPageProps) {
       }
     };
 
-    loadData();
-
-    // 2. Subscribe to Supabase Realtime updates
-    const channel = supabase
-      .channel(`room:${sessionId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'sync_sessions',
-          filter: `code=eq.${sessionId}`
-        },
-        (payload) => {
-          if (!isMounted) return;
-          if (payload.eventType === 'DELETE') {
-            setSessionData(null);
-          } else {
-            setSessionData(payload.new as SyncSession);
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'sync_participants'
-        },
-        async () => {
-          // Whenever participants change, refetch them to ensure we get matched disciplines/placements
-          try {
-            const response = await fetch(`${backendUrl}/api/group-sync/session/${sessionId}`);
-            const result = await response.json();
-            if (isMounted && response.ok && result.success) {
-              setParticipants(result.data.participants);
-            }
-          } catch (err) {
-            console.error('Error refreshing participants list:', err);
-          }
-        }
-      )
-      .subscribe();
+    void loadData();
+    const poll = window.setInterval(() => void loadData(), 2500);
 
     return () => {
       isMounted = false;
-      supabase.removeChannel(channel);
+      window.clearInterval(poll);
     };
-  }, [sessionId, backendUrl]);
+  }, [sessionId, backendUrl, hostFetch, isHost]);
 
   // If student is joined but their participant ID is missing from active list, they have been kicked
   useEffect(() => {
@@ -140,12 +142,11 @@ export default function ClientPage({ sessionId, isHost }: ClientPageProps) {
   // Host action: Remove/Kick participant
   const removeParticipant = async (participantId: string) => {
     try {
-      const { error } = await supabase
-        .from('sync_participants')
-        .delete()
-        .eq('id', participantId);
-        
-      if (error) throw error;
+      const response = await hostFetch(`/api/group-sync/session/${sessionId}/participants/${participantId}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.error?.message || 'Could not remove participant.');
       
       toast({
         title: 'Participant Removed',
@@ -224,7 +225,7 @@ export default function ClientPage({ sessionId, isHost }: ClientPageProps) {
     useDisciplines: boolean,
     requiredDisciplines?: string[]
   ) => {
-    const response = await fetch(`${backendUrl}/api/group-sync/session/${sessionId}/group`, {
+    const response = await hostFetch(`/api/group-sync/session/${sessionId}/group`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -245,7 +246,7 @@ export default function ClientPage({ sessionId, isHost }: ClientPageProps) {
 
   // Host action: Reset to Lobby state
   const resetToLobby = async () => {
-    const response = await fetch(`${backendUrl}/api/group-sync/session/${sessionId}/reset`, {
+    const response = await hostFetch(`/api/group-sync/session/${sessionId}/reset`, {
       method: 'POST',
     });
 
@@ -257,7 +258,7 @@ export default function ClientPage({ sessionId, isHost }: ClientPageProps) {
 
   // Host action: End Session
   const endSession = async () => {
-    const response = await fetch(`${backendUrl}/api/group-sync/session/${sessionId}/end`, {
+    const response = await hostFetch(`/api/group-sync/session/${sessionId}/end`, {
       method: 'POST',
     });
 
@@ -272,7 +273,7 @@ export default function ClientPage({ sessionId, isHost }: ClientPageProps) {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await fetch(`${backendUrl}/api/group-sync/session/${sessionId}/upload`, {
+    const response = await hostFetch(`/api/group-sync/session/${sessionId}/upload`, {
       method: 'POST',
       body: formData
     });
@@ -291,7 +292,7 @@ export default function ClientPage({ sessionId, isHost }: ClientPageProps) {
 
   // Host action: Pre-populate lobby using the uploaded roster
   const populateLobbyFromRoster = async () => {
-    const response = await fetch(`${backendUrl}/api/group-sync/session/${sessionId}/populate`, {
+    const response = await hostFetch(`/api/group-sync/session/${sessionId}/populate`, {
       method: 'POST'
     });
 
@@ -299,6 +300,32 @@ export default function ClientPage({ sessionId, isHost }: ClientPageProps) {
     if (!response.ok || !result.success) {
       throw new Error(result.error?.message || 'Failed to pre-populate lobby');
     }
+  };
+
+  const updateSessionGroups = async (groups: SyncSession['groups']) => {
+    const response = await hostFetch(`/api/group-sync/session/${sessionId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ groups }),
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.error?.message || 'Failed to update groups');
+    }
+    setSessionData(result.data);
+  };
+
+  const updateSessionName = async (name: string) => {
+    const response = await hostFetch(`/api/group-sync/session/${sessionId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.error?.message || 'Failed to update session name');
+    }
+    setSessionData(result.data);
   };
 
   if (isSessionLoading) {
@@ -310,6 +337,22 @@ export default function ClientPage({ sessionId, isHost }: ClientPageProps) {
   }
 
   if (!sessionData) {
+    if (isHost && hostAuthRequired) {
+      return (
+        <div className="min-h-screen bg-background flex flex-col">
+          <Navbar />
+          <main className="flex-grow flex items-center justify-center p-4">
+            <Alert className="max-w-md border-amber-500/30 bg-amber-500/10 text-amber-800">
+              <Terminal className="h-4 w-4" />
+              <AlertTitle>Staff sign-in required</AlertTitle>
+              <AlertDescription>
+                Sign in from the Group Sync home page with the staff account that owns this room, then reopen it.
+              </AlertDescription>
+            </Alert>
+          </main>
+        </div>
+      );
+    }
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <Navbar />
@@ -345,6 +388,8 @@ export default function ClientPage({ sessionId, isHost }: ClientPageProps) {
         uploadRosterFile={uploadRosterFile}
         populateLobbyFromRoster={populateLobbyFromRoster}
         onRemoveParticipant={removeParticipant}
+        onUpdateGroups={updateSessionGroups}
+        onUpdateName={updateSessionName}
       />
     );
   }
