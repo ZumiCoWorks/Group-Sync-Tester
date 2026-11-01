@@ -13,6 +13,7 @@ type Request = {
   request_reason: string;
   requester_department: string;
   status: 'pending' | 'approved' | 'declined';
+  teams_notification_sent: boolean;
   venues: {
     name: string;
     owning_department: string;
@@ -103,7 +104,14 @@ export default function ApprovalsQueue() {
           requests.map(req => (
             <div key={req.id} className="p-6 bg-white/10 rounded border border-white/20 flex flex-col md:flex-row justify-between gap-4">
               <div>
-                <h3 className="font-bold text-xl">{req.venues?.name}</h3>
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="font-bold text-xl">{req.venues?.name}</h3>
+                  {req.teams_notification_sent === false && (
+                    <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded flex items-center gap-1 border border-red-500/30" title="Teams webhook notification failed to send">
+                      ⚠️ Webhook Failed
+                    </span>
+                  )}
+                </div>
                 <p className="text-sm text-gray-300">Requested by: {req.requester_department}</p>
                 <div className="my-2 p-3 bg-black/20 rounded">
                   <p className="text-sm"><span className="font-semibold text-gray-400">Start:</span> {new Date(req.start_time).toLocaleString()}</p>

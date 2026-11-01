@@ -74,8 +74,8 @@ export default function VenueBookingDashboard() {
     setLoadError('');
     try {
       const [venueResponse, requestResponse] = await Promise.all([
-        fetch(`${backendUrl}/api/venues`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${backendUrl}/api/venues/requests`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${backendUrl}/api/worksuite/venues`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${backendUrl}/api/worksuite/requests`, { headers: { Authorization: `Bearer ${token}` } }),
       ]);
 
       const venuePayload = (await venueResponse.json()) as ApiResponse<Venue[]>;
@@ -202,7 +202,7 @@ export default function VenueBookingDashboard() {
     setCreatingVenue(true);
     setLoadError('');
     try {
-      const response = await fetch(`${backendUrl}/api/venues`, {
+      const response = await fetch(`${backendUrl}/api/worksuite/venues`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -229,7 +229,7 @@ export default function VenueBookingDashboard() {
     setRequesting(true);
     setLoadError('');
     try {
-      const response = await fetch(`${backendUrl}/api/venues/requests`, {
+      const response = await fetch(`${backendUrl}/api/worksuite/requests`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -255,7 +255,7 @@ export default function VenueBookingDashboard() {
     setResolvingId(requestId);
     setLoadError('');
     try {
-      const response = await fetch(`${backendUrl}/api/venues/requests/${requestId}/${action}`, {
+      const response = await fetch(`${backendUrl}/api/worksuite/requests/${requestId}/${action}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

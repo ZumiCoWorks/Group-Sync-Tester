@@ -1,11 +1,16 @@
 import xlsx from 'xlsx';
 
+export type PerformanceRating = 'good' | 'average' | 'weak';
+
 export interface ParsedStudent {
   name: string;
   studentNumber?: string;
+  /** First discipline retained for compatibility with older sessions. */
   discipline?: string;
+  /** Complete, de-duplicated history of disciplines found across the workbook. */
+  disciplines: string[];
   currentPlacement?: string;
-  performance?: string;
+  performance?: PerformanceRating;
 }
 
 export interface ParseRosterResult {
@@ -15,45 +20,115 @@ export interface ParseRosterResult {
   summary?: {
     totalStudents: number;
     withDiscipline: number;
+    disciplineAssignments: number;
     withPlacement: number;
     withPerformance: number;
   };
 }
 
-const normalizeHeader = (val: any): string => 
-  String(val ?? '').trim().toLowerCase().replace(/\s+/g, ' ').replace(/[^a-z0-9 ]/g, '');
+const NAME_HEADERS = ['first name', 'given name', 'name'];
+const LAST_NAME_HEADERS = ['last name', 'surname', 'family name'];
+const STUDENT_NUMBER_HEADERS = ['student number', 'student id', 'student no', 'id number', 'snumber'];
+const DISCIPLINE_HEADERS = ['programme', 'program', 'discipline', 'major', 'course', 'school', 'stream'];
+const PERFORMANCE_HEADERS = ['performance', 'rating', 'grade', 'rank', 'evaluation', 'level'];
+const PLACEMENT_HEADERS = ['team', 'group', 'placement', 'current team', 'current group'];
 
-function findColumnIndex(headers: string[], candidates: string[]): number {
-  // First look for exact match
-  const exactIdx = headers.findIndex(header => candidates.includes(header));
-  if (exactIdx !== -1) return exactIdx;
+const normalizeHeader = (value: unknown): string =>
+  String(value ?? '').trim().toLowerCase().replace(/\s+/g, ' ').replace(/[^a-z0-9 ]/g, '');
 
-  // Fallback to partial match, ensuring candidate 'name' doesn't match 'surname'
-  return headers.findIndex(header => 
-    candidates.some(candidate => {
-      if (candidate === 'name' && header.includes('surname')) {
-        return false;
-      }
-      return header.includes(candidate) || candidate.includes(header);
-    })
-  );
+function headerMatches(header: string, candidates: string[]): boolean {
+  return candidates.some(candidate => {
+    if (candidate === 'name' && header.includes('surname')) return false;
+    return header === candidate || header.startsWith(`${candidate} `) || header.endsWith(` ${candidate}`);
+  });
 }
 
-function autoDetectHeaderRow(rows: any[][]): number {
+function findColumnIndex(headers: string[], candidates: string[]): number {
+  return headers.findIndex(header => headerMatches(header, candidates));
+}
+
+function findColumnIndices(headers: string[], candidates: string[]): number[] {
+  return headers.reduce<number[]>((indices, header, index) => {
+    if (headerMatches(header, candidates)) indices.push(index);
+    return indices;
+  }, []);
+}
+
+function autoDetectHeaderRow(rows: unknown[][]): number {
   let headerRowIndex = 0;
+  let maxRecognizedHeaders = -1;
   let maxNonEmptyCells = 0;
+  const knownHeaders = [
+    ...NAME_HEADERS,
+    ...LAST_NAME_HEADERS,
+    ...STUDENT_NUMBER_HEADERS,
+    ...DISCIPLINE_HEADERS,
+    ...PERFORMANCE_HEADERS,
+    ...PLACEMENT_HEADERS,
+  ];
 
   for (let i = 0; i < Math.min(10, rows.length); i++) {
-    const row = rows[i];
-    if (!row) continue;
-    const nonEmptyCells = row.filter((cell: any) => cell !== null && cell !== undefined && String(cell).trim() !== '').length;
+    const row = rows[i] || [];
+    const normalized = row.map(normalizeHeader);
+    const recognizedHeaders = normalized.filter(header => headerMatches(header, knownHeaders)).length;
+    const nonEmptyCells = normalized.filter(Boolean).length;
 
-    if (nonEmptyCells > maxNonEmptyCells && nonEmptyCells >= 2) {
+    if (
+      recognizedHeaders > maxRecognizedHeaders ||
+      (recognizedHeaders === maxRecognizedHeaders && nonEmptyCells > maxNonEmptyCells)
+    ) {
+      maxRecognizedHeaders = recognizedHeaders;
       maxNonEmptyCells = nonEmptyCells;
       headerRowIndex = i;
     }
   }
+
   return headerRowIndex;
+}
+
+export function normalizePerformance(value: unknown): PerformanceRating | undefined {
+  const normalized = String(value ?? '').trim().toLowerCase();
+  if (!normalized) return undefined;
+
+  if (['good', 'high', 'strong', 'excellent'].some(term => normalized === term || normalized.includes(term))) {
+    return 'good';
+  }
+  if (['average', 'avg', 'medium', 'mid', 'satisfactory'].some(term => normalized === term || normalized.includes(term))) {
+    return 'average';
+  }
+  // Keep accepting the old "bad" vocabulary, but store it as the new Weak rating.
+  if (['weak', 'bad', 'low', 'poor'].some(term => normalized === term || normalized.includes(term))) {
+    return 'weak';
+  }
+
+  return undefined;
+}
+
+function parseDisciplineValues(values: unknown[]): string[] {
+  const disciplines = values.flatMap(value =>
+    String(value ?? '')
+      .split(/[|;\n]+/)
+      .map(item => item.trim())
+      .filter(Boolean)
+  );
+
+  const seen = new Set<string>();
+  return disciplines.filter(discipline => {
+    const key = discipline.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function mergeDisciplines(existing: string[], incoming: string[]): string[] {
+  return parseDisciplineValues([...existing, ...incoming]);
+}
+
+function readName(row: unknown[], firstNameCol: number, lastNameCol: number): string {
+  const firstName = firstNameCol !== -1 ? String(row[firstNameCol] ?? '').trim() : '';
+  const lastName = lastNameCol !== -1 ? String(row[lastNameCol] ?? '').trim() : '';
+  return `${firstName} ${lastName}`.trim();
 }
 
 export function parseRosterExcel(buffer: Buffer): ParseRosterResult {
@@ -63,176 +138,116 @@ export function parseRosterExcel(buffer: Buffer): ParseRosterResult {
       return { success: false, students: [], error: 'Excel workbook contains no sheets.' };
     }
 
-    // Identify sheets: Tab 1 = Class List, Tab 2 = Current Placements
     let classListSheetName = workbook.SheetNames[0];
-    let placementsSheetName = workbook.SheetNames.length > 1 ? workbook.SheetNames[1] : undefined;
+    const namedClassList = workbook.SheetNames.find(name => /class|roster/i.test(name));
+    if (namedClassList) classListSheetName = namedClassList;
 
-    // Scan sheet names for explicit matches
-    for (const name of workbook.SheetNames) {
-      const lower = name.toLowerCase();
-      if (lower.includes('placement') || lower.includes('team') || lower.includes('group') || lower.includes('current')) {
-        placementsSheetName = name;
-      } else if (lower.includes('class') || lower.includes('student') || lower.includes('roster')) {
-        classListSheetName = name;
-      }
-    }
+    const students: ParsedStudent[] = [];
+    const studentsByNumber = new Map<string, ParsedStudent>();
+    const studentsByName = new Map<string, ParsedStudent>();
 
-    const classListSheet = workbook.Sheets[classListSheetName];
-    const classListRows = xlsx.utils.sheet_to_json<any[]>(classListSheet, { header: 1, defval: '' });
-
-    if (classListRows.length < 2) {
-      return { success: false, students: [], error: 'Class list sheet is empty or contains no data.' };
-    }
-
-    // Parse Class List (Tab 1)
-    const clHeaderIdx = autoDetectHeaderRow(classListRows);
-    const clHeaders = classListRows[clHeaderIdx].map(normalizeHeader);
-
-    const firstNameCol = findColumnIndex(clHeaders, ['first name', 'given name', 'name']);
-    const lastNameCol = findColumnIndex(clHeaders, ['last name', 'surname', 'family name']);
-    const studentNumCol = findColumnIndex(clHeaders, ['student number', 'student id', 'student no', 'id number', 'snumber']);
-    const disciplineCol = findColumnIndex(clHeaders, ['programme', 'program', 'discipline', 'major', 'course', 'school', 'stream']);
-    const performanceCol = findColumnIndex(clHeaders, ['performance', 'rating', 'grade', 'rank', 'evaluation', 'level']);
-
-    if (firstNameCol === -1 && lastNameCol === -1) {
-      return { 
-        success: false, 
-        students: [], 
-        error: `Could not find a name column in sheet "${classListSheetName}". Headers: ${clHeaders.join(', ')}` 
-      };
-    }
-
-    const studentsMap = new Map<string, ParsedStudent>(); // Map by student number
-    const studentsByNameMap = new Map<string, ParsedStudent>(); // Map by clean name for fallbacks
-
-    for (let i = clHeaderIdx + 1; i < classListRows.length; i++) {
-      const row = classListRows[i];
-      if (!row || row.every(cell => String(cell ?? '').trim() === '')) continue;
-
-      let firstName = firstNameCol !== -1 ? String(row[firstNameCol] ?? '').trim() : '';
-      let lastName = lastNameCol !== -1 ? String(row[lastNameCol] ?? '').trim() : '';
-      let fullName = `${firstName} ${lastName}`.trim();
-      
-      // Fallback if columns are merged or name is single column
-      if (!fullName && firstNameCol !== -1) fullName = String(row[firstNameCol] ?? '').trim();
-      if (!fullName) continue;
-
-      const studentNumber = studentNumCol !== -1 ? String(row[studentNumCol] ?? '').trim() : undefined;
-      const discipline = disciplineCol !== -1 ? String(row[disciplineCol] ?? '').trim() : undefined;
-      
-      const performanceRaw = performanceCol !== -1 ? String(row[performanceCol] ?? '').trim().toLowerCase() : '';
-      let performance: string | undefined;
-      if (performanceRaw) {
-        if (performanceRaw.includes('good') || performanceRaw.startsWith('g') || performanceRaw === 'high' || performanceRaw === 'strong') {
-          performance = 'good';
-        } else if (performanceRaw.includes('bad') || performanceRaw.startsWith('b') || performanceRaw.includes('weak') || performanceRaw === 'low' || performanceRaw === 'poor') {
-          performance = 'bad';
-        }
-      }
-
-      const student: ParsedStudent = {
-        name: fullName,
-        studentNumber,
-        discipline,
-        performance,
-      };
-
+    const findStudent = (studentNumber: string, name: string): ParsedStudent | undefined => {
       if (studentNumber) {
-        studentsMap.set(studentNumber.toLowerCase(), student);
+        const byNumber = studentsByNumber.get(studentNumber.toLowerCase());
+        if (byNumber) return byNumber;
       }
-      studentsByNameMap.set(fullName.toLowerCase(), student);
+      return name ? studentsByName.get(name.toLowerCase()) : undefined;
+    };
+
+    const indexStudent = (student: ParsedStudent) => {
+      if (!students.includes(student)) students.push(student);
+      if (student.studentNumber) studentsByNumber.set(student.studentNumber.toLowerCase(), student);
+      if (student.name) studentsByName.set(student.name.toLowerCase(), student);
+    };
+
+    const mergeStudent = (incoming: ParsedStudent): ParsedStudent => {
+      const existing = findStudent(incoming.studentNumber || '', incoming.name);
+      if (!existing) {
+        incoming.discipline = incoming.disciplines[0];
+        indexStudent(incoming);
+        return incoming;
+      }
+
+      existing.disciplines = mergeDisciplines(existing.disciplines, incoming.disciplines);
+      existing.discipline = existing.disciplines[0];
+      existing.studentNumber ||= incoming.studentNumber;
+      existing.currentPlacement = incoming.currentPlacement || existing.currentPlacement;
+      existing.performance = incoming.performance || existing.performance;
+      indexStudent(existing);
+      return existing;
+    };
+
+    const parseSheet = (sheetName: string, requireName: boolean) => {
+      const rows = xlsx.utils.sheet_to_json<unknown[]>(workbook.Sheets[sheetName], { header: 1, defval: '' });
+      if (rows.length < 2) return;
+
+      const headerIndex = autoDetectHeaderRow(rows);
+      const headers = rows[headerIndex].map(normalizeHeader);
+      const firstNameCol = findColumnIndex(headers, NAME_HEADERS);
+      const lastNameCol = findColumnIndex(headers, LAST_NAME_HEADERS);
+      const studentNumberCol = findColumnIndex(headers, STUDENT_NUMBER_HEADERS);
+      const disciplineCols = findColumnIndices(headers, DISCIPLINE_HEADERS);
+      const performanceCol = findColumnIndex(headers, PERFORMANCE_HEADERS);
+      const placementCol = findColumnIndex(headers, PLACEMENT_HEADERS);
+
+      if (requireName && firstNameCol === -1 && lastNameCol === -1) {
+        throw new Error(`Could not find a name column in sheet "${sheetName}". Headers: ${headers.join(', ')}`);
+      }
+
+      const hasStudentIdentity = studentNumberCol !== -1 || firstNameCol !== -1 || lastNameCol !== -1;
+      const hasUsefulHistory = disciplineCols.length > 0 || performanceCol !== -1 || placementCol !== -1;
+      if (!hasStudentIdentity || (!requireName && !hasUsefulHistory)) return;
+
+      for (let i = headerIndex + 1; i < rows.length; i++) {
+        const row = rows[i] || [];
+        if (row.every(cell => String(cell ?? '').trim() === '')) continue;
+
+        const name = readName(row, firstNameCol, lastNameCol);
+        const studentNumber = studentNumberCol !== -1 ? String(row[studentNumberCol] ?? '').trim() : '';
+        const matchedStudent = findStudent(studentNumber, name);
+        if (!matchedStudent && !name) continue;
+
+        const disciplines = parseDisciplineValues(disciplineCols.map(column => row[column]));
+        const performance = performanceCol !== -1 ? normalizePerformance(row[performanceCol]) : undefined;
+        const currentPlacement = placementCol !== -1 ? String(row[placementCol] ?? '').trim() || undefined : undefined;
+
+        mergeStudent({
+          name: name || matchedStudent!.name,
+          studentNumber: studentNumber || matchedStudent?.studentNumber,
+          disciplines,
+          currentPlacement,
+          performance,
+        });
+      }
+    };
+
+    parseSheet(classListSheetName, true);
+    for (const sheetName of workbook.SheetNames) {
+      if (sheetName !== classListSheetName) parseSheet(sheetName, false);
     }
 
-    // Parse Current Placements (Tab 2) if it exists
-    if (placementsSheetName && workbook.Sheets[placementsSheetName]) {
-      const placementsSheet = workbook.Sheets[placementsSheetName];
-      const placementsRows = xlsx.utils.sheet_to_json<any[]>(placementsSheet, { header: 1, defval: '' });
-
-      if (placementsRows.length > 1) {
-        const plHeaderIdx = autoDetectHeaderRow(placementsRows);
-        const plHeaders = placementsRows[plHeaderIdx].map(normalizeHeader);
-
-        const plStudentNumCol = findColumnIndex(plHeaders, ['student number', 'student id', 'student no', 'id number', 'snumber']);
-        const plFirstNameCol = findColumnIndex(plHeaders, ['first name', 'given name', 'name']);
-        const plLastNameCol = findColumnIndex(plHeaders, ['last name', 'surname', 'family name']);
-        const teamCol = findColumnIndex(plHeaders, ['team', 'group', 'placement', 'current team', 'current group']);
-        const plPerformanceCol = findColumnIndex(plHeaders, ['performance', 'rating', 'grade', 'rank', 'evaluation', 'level']);
-
-        if (teamCol !== -1) {
-          for (let i = plHeaderIdx + 1; i < placementsRows.length; i++) {
-            const row = placementsRows[i];
-            if (!row || row.every(cell => String(cell ?? '').trim() === '')) continue;
-
-            const studentNumber = plStudentNumCol !== -1 ? String(row[plStudentNumCol] ?? '').trim() : undefined;
-            const firstName = plFirstNameCol !== -1 ? String(row[plFirstNameCol] ?? '').trim() : '';
-            const lastName = plLastNameCol !== -1 ? String(row[plLastNameCol] ?? '').trim() : '';
-            let fullName = `${firstName} ${lastName}`.trim();
-            if (!fullName && plFirstNameCol !== -1) fullName = String(row[plFirstNameCol] ?? '').trim();
-
-            const placement = String(row[teamCol] ?? '').trim();
-            if (!placement) continue;
-
-            const performanceRaw = plPerformanceCol !== -1 ? String(row[plPerformanceCol] ?? '').trim().toLowerCase() : '';
-            let performance: string | undefined;
-            if (performanceRaw) {
-              if (performanceRaw.includes('good') || performanceRaw.startsWith('g') || performanceRaw === 'high' || performanceRaw === 'strong') {
-                performance = 'good';
-              } else if (performanceRaw.includes('bad') || performanceRaw.startsWith('b') || performanceRaw.includes('weak') || performanceRaw === 'low' || performanceRaw === 'poor') {
-                performance = 'bad';
-              }
-            }
-
-            // Try to match student
-            let matchedStudent: ParsedStudent | undefined;
-
-            if (studentNumber) {
-              matchedStudent = studentsMap.get(studentNumber.toLowerCase());
-            }
-
-            if (!matchedStudent && fullName) {
-              matchedStudent = studentsByNameMap.get(fullName.toLowerCase());
-            }
-
-            if (matchedStudent) {
-              matchedStudent.currentPlacement = placement;
-              if (performance) {
-                matchedStudent.performance = performance;
-              }
-            } else if (fullName) {
-              // Student in placements tab but not class list. Add them anyway.
-              const newStudent: ParsedStudent = {
-                name: fullName,
-                studentNumber,
-                currentPlacement: placement,
-                performance
-              };
-              if (studentNumber) {
-                studentsMap.set(studentNumber.toLowerCase(), newStudent);
-              }
-              studentsByNameMap.set(fullName.toLowerCase(), newStudent);
-            }
-          }
-        }
-      }
+    if (students.length === 0) {
+      return { success: false, students: [], error: 'No valid students were found in the workbook.' };
     }
 
-    const uniqueStudents = Array.from(studentsByNameMap.values());
-    const withDiscipline = uniqueStudents.filter(s => !!s.discipline).length;
-    const withPlacement = uniqueStudents.filter(s => !!s.currentPlacement).length;
-    const withPerformance = uniqueStudents.filter(s => !!s.performance).length;
+    const withDiscipline = students.filter(student => student.disciplines.length > 0).length;
+    const disciplineAssignments = students.reduce((total, student) => total + student.disciplines.length, 0);
+    const withPlacement = students.filter(student => !!student.currentPlacement).length;
+    const withPerformance = students.filter(student => !!student.performance).length;
 
     return {
       success: true,
-      students: uniqueStudents,
+      students,
       summary: {
-        totalStudents: uniqueStudents.length,
+        totalStudents: students.length,
         withDiscipline,
+        disciplineAssignments,
         withPlacement,
-        withPerformance
-      }
+        withPerformance,
+      },
     };
   } catch (error: any) {
-    console.error('Error parsing Excel roster:', error);
-    return { success: false, students: [], error: error?.message || 'Failed to parse Excel file.' };
+    console.error('Error parsing roster:', error);
+    return { success: false, students: [], error: error?.message || 'Failed to parse roster file.' };
   }
 }

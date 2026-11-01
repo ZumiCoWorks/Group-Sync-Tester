@@ -91,3 +91,23 @@ body {
 .afda-accent {
 	color: var(--accent-creative);
 }
+
+.continuum-module-bar {
+	display: flex;
+	min-height: 46px;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	padding: .55rem clamp(1rem, 4vw, 2.5rem);
+	border-bottom: 4px solid #c8202f;
+	background: #101010;
+	color: #ffffff;
+	font-size: .75rem;
+}
+.continuum-module-bar div { display: flex; align-items: center; gap: .75rem; }
+.continuum-module-bar__mark { display: grid; width: 24px; height: 24px; place-items: center; border-radius: 7px; background: #ed1b2f; color: #fff; font: 700 11px 'Space Grotesk', sans-serif; }
+.continuum-module-bar strong { letter-spacing: .06em; }
+.continuum-module-bar div span { color: #c8c8c8; }
+.continuum-module-bar > a { min-height: 32px; display: inline-flex; align-items: center; color: white; font-weight: 700; text-underline-offset: .2em; }
+.continuum-module-bar > span { color: #a9a9a9; }
+@media (max-width: 640px) { .continuum-module-bar { align-items: flex-start; flex-direction: column; } }

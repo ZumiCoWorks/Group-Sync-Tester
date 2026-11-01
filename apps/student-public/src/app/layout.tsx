@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import './globals.css';
 
 export default function RootLayout({ children }: { children: ReactNode }) {
+  const continuumUrl = process.env.NEXT_PUBLIC_CONTINUUM_URL;
   return (
     <html lang="en">
       <head>
@@ -12,6 +13,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <title>AFDA Booking</title>
       </head>
       <body className="bg-primary text-heading antialiased">
+        <div className="continuum-module-bar">
+          <div><span className="continuum-module-bar__mark">A</span><strong>AFDA Continuum</strong><span>Student Booking</span></div>
+          {continuumUrl ? <a href={continuumUrl}>Return to Continuum</a> : <span>Continuum return URL not configured</span>}
+        </div>
         <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(225,29,72,0.08),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(37,99,235,0.05),_transparent_30%)]">
           <header className="border-b border-muted bg-white/90 backdrop-blur-xl">
             <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">

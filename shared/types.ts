@@ -406,6 +406,7 @@ export interface SyncGroupMember {
   name: string;
   avatar: string;
   discipline?: string;
+  disciplines?: string[];
   student_number?: string;
   current_placement?: string;
   performance?: string;
@@ -418,8 +419,8 @@ export interface SyncParticipant {
   avatar: string;
   student_number?: string;
   discipline?: string;
+  disciplines?: string[];
   current_placement?: string;
   joined_at: string;
   performance?: string;
 }
-

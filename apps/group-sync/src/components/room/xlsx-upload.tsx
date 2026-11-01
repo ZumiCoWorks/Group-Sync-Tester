@@ -85,8 +85,9 @@ export function XLSXUpload({ isOpen, onClose, onUploadFile, onPopulateLobby }: X
                     <DialogDescription className="text-muted-foreground !mt-2 font-medium">
                         Upload an Excel (.xlsx, .xls) or CSV (.csv) file containing:
                         <ol className="list-decimal pl-5 mt-1 space-y-0.5 text-xs">
-                            <li><strong>Class List:</strong> Columns: Surname, Name, Student Number, Discipline</li>
-                            <li><strong>Current Placements (optional, Tab 2 in Excel):</strong> Columns: Student Number, Current Team</li>
+                            <li><strong>Class List:</strong> Surname, Name, Student Number, one or more Discipline columns, and Performance</li>
+                            <li><strong>History tabs (optional):</strong> Repeat a student across rows or tabs to add disciplines; use Good, Average, or Weak for performance</li>
+                            <li><strong>Current Placements (optional):</strong> Student Number and Current Team</li>
                         </ol>
                     </DialogDescription>
                 </DialogHeader>
@@ -111,7 +112,7 @@ export function XLSXUpload({ isOpen, onClose, onUploadFile, onPopulateLobby }: X
                                     <div>
                                         <p className="font-bold text-foreground text-sm">Roster Parsed Successfully</p>
                                         <p className="text-xs text-muted-foreground">
-                                            {students.length} students found (Matched: {summary?.withDiscipline || 0} disciplines, {summary?.withPlacement || 0} placements)
+                                            {students.length} students · {summary?.disciplineAssignments ?? summary?.withDiscipline ?? 0} discipline records · {summary?.withPerformance || 0} ratings · {summary?.withPlacement || 0} placements
                                         </p>
                                     </div>
                                 </div>
@@ -145,9 +146,14 @@ export function XLSXUpload({ isOpen, onClose, onUploadFile, onPopulateLobby }: X
                                                                 {student.studentNumber}
                                                             </span>
                                                         )}
-                                                        {student.discipline && (
-                                                            <span className="text-[10px] bg-rose-500/10 text-rose-600 px-2 py-0.5 rounded-full">
-                                                                {student.discipline}
+                                                        {(student.disciplines?.length ? student.disciplines : student.discipline ? [student.discipline] : []).map((discipline: string) => (
+                                                            <span key={discipline} className="text-[10px] bg-rose-500/10 text-rose-700 px-2 py-0.5 rounded-full">
+                                                                {discipline}
+                                                            </span>
+                                                        ))}
+                                                        {student.performance && (
+                                                            <span className="text-[10px] bg-amber-500/10 text-amber-700 px-2 py-0.5 rounded-full capitalize">
+                                                                {student.performance}
                                                             </span>
                                                         )}
                                                         {student.currentPlacement && (

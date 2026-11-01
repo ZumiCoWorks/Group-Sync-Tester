@@ -61,12 +61,12 @@ describe('grouping-algo', () => {
     });
   });
 
-  it('should balance student performance levels across groups', () => {
+  it('should balance Good, Average, and Weak performance levels across groups', () => {
     const participantsWithPerformance: SyncParticipant[] = [
       { id: '1', session_id: 's1', name: 'Alice', avatar: '🐱', discipline: 'Finance', current_placement: 'Team A', performance: 'bad', joined_at: new Date().toISOString() },
-      { id: '2', session_id: 's1', name: 'Bob', avatar: '🐶', discipline: 'Finance', current_placement: 'Team A', performance: 'bad', joined_at: new Date().toISOString() },
-      { id: '3', session_id: 's1', name: 'Charlie', avatar: '🦊', discipline: 'Marketing', current_placement: 'Team B', performance: 'good', joined_at: new Date().toISOString() },
-      { id: '4', session_id: 's1', name: 'David', avatar: '🦁', discipline: 'Marketing', current_placement: 'Team B', performance: 'good', joined_at: new Date().toISOString() },
+      { id: '2', session_id: 's1', name: 'Bob', avatar: '🐶', discipline: 'Finance', current_placement: 'Team A', performance: 'weak', joined_at: new Date().toISOString() },
+      { id: '3', session_id: 's1', name: 'Charlie', avatar: '🦊', discipline: 'Marketing', current_placement: 'Team B', performance: 'average', joined_at: new Date().toISOString() },
+      { id: '4', session_id: 's1', name: 'David', avatar: '🦁', discipline: 'Marketing', current_placement: 'Team B', performance: 'average', joined_at: new Date().toISOString() },
       { id: '5', session_id: 's1', name: 'Eve', avatar: '🐸', discipline: 'Design', current_placement: 'Team C', performance: 'good', joined_at: new Date().toISOString() },
       { id: '6', session_id: 's1', name: 'Frank', avatar: '🐼', discipline: 'Design', current_placement: 'Team C', performance: 'good', joined_at: new Date().toISOString() },
     ];
@@ -76,12 +76,30 @@ describe('grouping-algo', () => {
 
     result.forEach(group => {
       expect(group.members.length).toBe(3);
-      // Each group of 3 should get exactly one 'bad' performer and two 'good' performers (since we have 2 bad and 4 good total).
       const performances = group.members.map(m => m.performance);
-      const badCount = performances.filter(p => p === 'bad').length;
-      const goodCount = performances.filter(p => p === 'good').length;
-      expect(badCount).toBe(1);
-      expect(goodCount).toBe(2);
+      expect(performances.filter(p => p === 'weak')).toHaveLength(1);
+      expect(performances.filter(p => p === 'average')).toHaveLength(1);
+      expect(performances.filter(p => p === 'good')).toHaveLength(1);
+    });
+  });
+
+  it('uses every discipline in a student history for required representation', () => {
+    const participantsWithHistory: SyncParticipant[] = [
+      { id: '1', session_id: 's1', name: 'Alice', avatar: '🐱', disciplines: ['Finance', 'Writing'], joined_at: new Date().toISOString() },
+      { id: '2', session_id: 's1', name: 'Bob', avatar: '🐶', disciplines: ['Design', 'Writing'], joined_at: new Date().toISOString() },
+      { id: '3', session_id: 's1', name: 'Charlie', avatar: '🦊', disciplines: ['Finance'], joined_at: new Date().toISOString() },
+      { id: '4', session_id: 's1', name: 'David', avatar: '🦁', disciplines: ['Design'], joined_at: new Date().toISOString() },
+    ];
+
+    const result = generateGroups(participantsWithHistory, {
+      groupCount: 2,
+      useDisciplines: true,
+      avoidSamePlacements: false,
+      requiredDisciplines: ['Writing'],
+    });
+
+    result.forEach(group => {
+      expect(group.members.some(member => member.disciplines?.includes('Writing'))).toBe(true);
     });
   });
 });

@@ -23,7 +23,7 @@
         "./src/*"
       ]
     },
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "allowJs": true,
     "noEmit": true,
     "incremental": true,
@@ -38,7 +38,8 @@
   "include": [
     "next-env.d.ts",
     "src",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

@@ -37,6 +37,7 @@ type BatchFormState = {
   dateRangeStart: string;
   dateRangeEnd: string;
   slotDurationMinutes: string;
+  perSlotCapacity: string;
   batchCapacity: string;
   dayStartTime: string;
   dayEndTime: string;
@@ -55,8 +56,9 @@ const emptyFormState = (): BatchFormState => ({
   description: '',
   venueId: '',
   dateRangeStart: '',
-    dateRangeEnd: '',
-    slotDurationMinutes: '60',
+  dateRangeEnd: '',
+  slotDurationMinutes: '60',
+  perSlotCapacity: '1',
   batchCapacity: '',
   dayStartTime: '09:00',
   dayEndTime: '17:00',
@@ -146,6 +148,7 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
           dateRangeStart: toDateInputValue(data.date_range_start),
           dateRangeEnd: toDateInputValue(data.date_range_end),
           slotDurationMinutes: String(data.slot_duration_minutes ?? 60),
+          perSlotCapacity: String(data.per_slot_capacity ?? 1),
           batchCapacity: data.batch_capacity ? String(data.batch_capacity) : '',
           dayStartTime: toTimeInputValue(data.day_start_time, '09:00'),
           dayEndTime: toTimeInputValue(data.day_end_time, '17:00'),
@@ -207,10 +210,10 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
     const lunchStartMinutes = lunchStart ? parseMinutes(lunchStart, 13 * 60) : 0;
     const lunchEndMinutes = lunchEnd ? parseMinutes(lunchEnd, 14 * 60) : 0;
 
-    const toUtcDate = (dateStr: string, minutesSinceMidnight: number) => {
+    const toSouthAfricaDate = (dateStr: string, minutesSinceMidnight: number) => {
       const hh = Math.floor(minutesSinceMidnight / 60).toString().padStart(2, '0');
       const mm = (minutesSinceMidnight % 60).toString().padStart(2, '0');
-      return new Date(`${dateStr}T${hh}:${mm}:00.000Z`);
+      return new Date(`${dateStr}T${hh}:${mm}:00+02:00`);
     };
 
     const generated: Array<{ start_time: string; end_time: string; capacity: number }> = [];
@@ -226,14 +229,14 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
       const dayStr = currentDay.toISOString().slice(0, 10);
       
       const windows: Array<{ start: Date; end: Date }> = [];
-      const morningStart = toUtcDate(dayStr, dayStartMinutes);
-      const morningEnd = toUtcDate(dayStr, Math.min(Math.max(lunchStartMinutes, dayStartMinutes), dayEndMinutes));
+      const morningStart = toSouthAfricaDate(dayStr, dayStartMinutes);
+      const morningEnd = toSouthAfricaDate(dayStr, Math.min(Math.max(lunchStartMinutes, dayStartMinutes), dayEndMinutes));
       if (morningEnd.getTime() > morningStart.getTime()) {
         windows.push({ start: morningStart, end: morningEnd });
       }
 
-      const afternoonStart = toUtcDate(dayStr, Math.min(Math.max(lunchEndMinutes, dayStartMinutes), dayEndMinutes));
-      const afternoonEnd = toUtcDate(dayStr, dayEndMinutes);
+      const afternoonStart = toSouthAfricaDate(dayStr, Math.min(Math.max(lunchEndMinutes, dayStartMinutes), dayEndMinutes));
+      const afternoonEnd = toSouthAfricaDate(dayStr, dayEndMinutes);
       if (afternoonEnd.getTime() > afternoonStart.getTime()) {
         windows.push({ start: afternoonStart, end: afternoonEnd });
       }
@@ -266,7 +269,6 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
     return { generated, finalEndDateStr };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const generatedData = useMemo(() => {
     if (!formState.dateRangeStart || !formState.dateRangeEnd) return { generated: [], finalEndDateStr: '' };
     
@@ -274,12 +276,13 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
     if (slotDuration <= 0) return { generated: [], finalEndDateStr: '' };
     
     const targetCount = Number(formState.targetSlotCount) || undefined;
+    const perSlotCapacity = Math.max(1, Number(formState.perSlotCapacity) || 1);
 
     const result = generateSlotsPayload(
       formState.dateRangeStart,
       formState.dateRangeEnd || formState.dateRangeStart,
       slotDuration,
-      1,
+      perSlotCapacity,
       formState.dayStartTime,
       formState.dayEndTime,
       formState.lunchBreakStart,
@@ -288,12 +291,91 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
     );
     
     return result;
-  }, [formState.dateRangeStart, formState.dateRangeEnd, formState.slotDurationMinutes, formState.dayStartTime, formState.dayEndTime, formState.lunchBreakStart, formState.lunchBreakEnd, formState.targetSlotCount]);
+  }, [formState.dateRangeStart, formState.dateRangeEnd, formState.slotDurationMinutes, formState.perSlotCapacity, formState.dayStartTime, formState.dayEndTime, formState.lunchBreakStart, formState.lunchBreakEnd, formState.targetSlotCount]);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const generatedSlotsPreview = generatedData.generated;
   const isEndDateExtended = formState.targetSlotCount && generatedData.finalEndDateStr !== (formState.dateRangeEnd || formState.dateRangeStart);
 
+  const suggestedEndTime = useMemo(() => {
+    if (!isEndDateExtended) return null;
+    const targetCount = Number(formState.targetSlotCount);
+    if (!targetCount) return null;
+    const slotDuration = Number(formState.slotDurationMinutes) || 0;
+    if (slotDuration <= 0) return null;
+    
+    // Test if extending the end time up to 17:00 would prevent spillover
+    const maxEndMinutes = 17 * 60; // 17:00
+    
+    const parseMinutes = (time: string, fallback: number) => {
+      const [hRaw, mRaw] = time.split(':');
+      const h = Number(hRaw);
+      const m = Number(mRaw);
+      if (!Number.isFinite(h) || !Number.isFinite(m)) return fallback;
+      return h * 60 + m;
+    };
+    
+    const currentEndMinutes = parseMinutes(formState.dayEndTime, 17 * 60);
+    if (currentEndMinutes >= maxEndMinutes) return null;
+    
+    let testEndMinutes = currentEndMinutes + slotDuration;
+    
+    while (testEndMinutes <= maxEndMinutes) {
+      const hh = Math.floor(testEndMinutes / 60).toString().padStart(2, '0');
+      const mm = (testEndMinutes % 60).toString().padStart(2, '0');
+      const testEndTime = `${hh}:${mm}`;
+      
+      const sim = generateSlotsPayload(
+        formState.dateRangeStart,
+        formState.dateRangeEnd || formState.dateRangeStart,
+        slotDuration,
+        1,
+        formState.dayStartTime,
+        testEndTime,
+        formState.lunchBreakStart,
+        formState.lunchBreakEnd,
+        targetCount
+      );
+      
+      if (sim.finalEndDateStr <= (formState.dateRangeEnd || formState.dateRangeStart)) {
+        return testEndTime;
+      }
+      
+      testEndMinutes += slotDuration;
+    }
+    
+    return null;
+  }, [isEndDateExtended, formState.targetSlotCount, formState.slotDurationMinutes, formState.dayEndTime, formState.dateRangeStart, formState.dateRangeEnd, formState.dayStartTime, formState.lunchBreakStart, formState.lunchBreakEnd]);
+
+  const previewDayCount = useMemo(
+    () => new Set(generatedSlotsPreview.map((slot) => new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Africa/Johannesburg',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date(slot.start_time)))).size,
+    [generatedSlotsPreview]
+  );
+  const calculatedCapacity = generatedSlotsPreview.length * Math.max(1, Number(formState.perSlotCapacity) || 1);
+  const effectiveCapacity = formState.batchCapacity.trim()
+    ? Number(formState.batchCapacity)
+    : calculatedCapacity;
+  const formatPreviewSlot = (startTime: string, endTime: string) => {
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    const day = new Intl.DateTimeFormat('en-ZA', {
+      timeZone: 'Africa/Johannesburg',
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+    }).format(start);
+    const timeFormatter = new Intl.DateTimeFormat('en-ZA', {
+      timeZone: 'Africa/Johannesburg',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+    return `${day} · ${timeFormatter.format(start)}–${timeFormatter.format(end)}`;
+  };
 
   const bookingLink = batchId ? `${studentBookingBase}/batch/${batchId}` : '';
   const lecturerRosterLink = batchId && batchSummary?.public_view_token
@@ -334,7 +416,7 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
     setSaving(true);
     try {
       const slotDuration = Number(formState.slotDurationMinutes) || 60;
-      const perSlotCap = Number((document.getElementById('perSlotCapacity') as HTMLInputElement)?.value) || 1;
+      const perSlotCap = Math.max(1, Number(formState.perSlotCapacity) || 1);
       
       const targetCount = Number(formState.targetSlotCount) || undefined;
       let generatedSlots: Array<{ start_time: string; end_time: string; capacity: number }> = [];
@@ -505,7 +587,7 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
 
   return (
     <div className="min-h-screen bg-[#f4f2ed] px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-5xl space-y-6">
+      <div className="mx-auto max-w-7xl space-y-6">
         <div className="flex items-center justify-between gap-4">
           <button
             type="button"
@@ -604,203 +686,216 @@ export default function BatchEditorScreen({ mode, batchId, authToken }: { mode: 
           )}
         </section>
 
-        <section>
+        <section className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(20rem,0.75fr)]">
           <form onSubmit={handleSubmit} className="border border-slate-300 bg-white p-5 sm:p-7">
-            <div className="space-y-5">
-              <div>
-                <label className="mb-2 block text-sm font-medium text-heading">Title</label>
-                <input
-                  type="text"
-                  value={formState.title}
-                  onChange={handleChange('title')}
-                  className={fieldClassName}
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-heading">Description</label>
-                <textarea
-                  value={formState.description}
-                  onChange={handleChange('description')}
-                  rows={3}
-                  className={fieldClassName}
-                />
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-8">
+              <fieldset className="space-y-5">
+                <legend className="text-xl font-bold text-slate-950">1. Name the booking batch</legend>
+                <p className="text-sm leading-6 text-slate-600">This is what staff and students will use to identify the booking activity.</p>
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-heading">Start Date</label>
-                  <input
-                    type="date"
-                    value={formState.dateRangeStart}
-                    onChange={handleChange('dateRangeStart')}
-                    className={fieldClassName}
-                    required
-                  />
+                  <label className="mb-2 block text-sm font-bold text-slate-900">Title</label>
+                  <input type="text" value={formState.title} onChange={handleChange('title')} className={fieldClassName} required />
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-heading">End Date</label>
-                  <input
-                    type="date"
-                    value={formState.dateRangeEnd}
-                    onChange={handleChange('dateRangeEnd')}
-                    className={fieldClassName}
-                    required
-                  />
-                  {isEndDateExtended && (
-                    <p className="mt-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                      Automatically extending to {generatedData.finalEndDateStr} to fit {formState.targetSlotCount} slots.
+                  <label className="mb-2 block text-sm font-bold text-slate-900">Description</label>
+                  <textarea value={formState.description} onChange={handleChange('description')} rows={3} className={fieldClassName} />
+                </div>
+              </fieldset>
+
+              <fieldset className="space-y-5 border-t border-slate-300 pt-7">
+                <legend className="text-xl font-bold text-slate-950">2. Build the slot schedule</legend>
+                <p className="text-sm leading-6 text-slate-600">Choose the date range and daily availability. Slot Booking will generate every bookable time below.</p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block text-sm font-bold text-slate-900">Start date</label>
+                    <input type="date" value={formState.dateRangeStart} onChange={handleChange('dateRangeStart')} className={fieldClassName} required />
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-sm font-bold text-slate-900">End date</label>
+                    <input type="date" value={formState.dateRangeEnd} onChange={handleChange('dateRangeEnd')} className={fieldClassName} required />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block text-sm font-bold text-slate-900">Slot duration</label>
+                    <div className="relative">
+                      <input type="number" min={5} step={5} value={formState.slotDurationMinutes} onChange={handleChange('slotDurationMinutes')} className={`${fieldClassName} pr-20`} required />
+                      <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-slate-500">minutes</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-sm font-bold text-slate-900">Slots needed</label>
+                    <input type="number" min={1} value={formState.targetSlotCount} onChange={handleChange('targetSlotCount')} placeholder="Use all slots in the date range" className={fieldClassName} />
+                    <p className="mt-2 text-xs leading-5 text-slate-600">
+                      {continuumHandoff
+                        ? `Prefilled from Group Sync session ${continuumHandoff.sessionCode}. Adjust it if the booking need has changed.`
+                        : 'Optional. Leave blank to create every slot available in the selected date range.'}
                     </p>
-                  )}
+                  </div>
                 </div>
-              </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-heading">Slot Duration (mins)</label>
-                  <input
-                    type="number"
-                    value={formState.slotDurationMinutes}
-                    onChange={handleChange('slotDurationMinutes')}
-                    className={fieldClassName}
-                  />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block text-sm font-bold text-slate-900">Day starts</label>
+                    <input type="time" value={formState.dayStartTime} onChange={handleChange('dayStartTime')} className={fieldClassName} required />
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-sm font-bold text-slate-900">Day ends</label>
+                    <input type="time" value={formState.dayEndTime} onChange={handleChange('dayEndTime')} className={fieldClassName} required />
+                  </div>
                 </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-heading">Target Slot Count (Optional)</label>
-                  <input
-                    type="number"
-                    value={formState.targetSlotCount}
-                    onChange={handleChange('targetSlotCount')}
-                    placeholder="e.g. 15"
-                    className={fieldClassName}
-                  />
-                </div>
-              </div>
 
-              <div className="border border-slate-300 bg-slate-50 p-4 text-sm text-slate-700">
-                Each slot allows one booking only.
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-heading">Day Start Time</label>
-                  <input
-                    type="time"
-                    value={formState.dayStartTime}
-                    onChange={handleChange('dayStartTime')}
-                    className={fieldClassName}
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-heading">Day End Time</label>
-                  <input
-                    type="time"
-                    value={formState.dayEndTime}
-                    onChange={handleChange('dayEndTime')}
-                    className={fieldClassName}
-                  />
-                </div>
-              </div>
-
-              <div className="pt-2">
                 {!hasBreak ? (
-                  <button
-                    type="button"
-                    onClick={() => setHasBreak(true)}
-                    className="text-sm font-medium text-blue-600 hover:text-blue-500"
-                  >
-                    + Add a break (e.g., Lunch)
+                  <button type="button" onClick={() => setHasBreak(true)} className="text-sm font-bold text-teal-800 underline decoration-2 underline-offset-4 hover:text-teal-950">
+                    + Add a break
                   </button>
                 ) : (
                   <div className="space-y-4 border border-slate-300 bg-slate-50 p-4">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-medium text-heading">Break Time</h4>
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-950">Unavailable break</h3>
+                        <p className="mt-1 text-xs text-slate-600">No slots will be generated inside this window.</p>
+                      </div>
                       <button
                         type="button"
                         onClick={() => {
                           setHasBreak(false);
-                          setFormState(prev => ({ ...prev, lunchBreakStart: '', lunchBreakEnd: '' }));
+                          setFormState((previous) => ({ ...previous, lunchBreakStart: '', lunchBreakEnd: '' }));
                         }}
-                        className="text-xs text-rose-500 hover:text-rose-400"
+                        className="text-sm font-bold text-rose-800 underline decoration-2 underline-offset-4 hover:text-rose-950"
                       >
-                        Remove Break
+                        Remove
                       </button>
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div>
-                        <label className="mb-2 block text-xs font-medium text-body">Break Start</label>
-                        <input
-                          type="time"
-                          value={formState.lunchBreakStart}
-                          onChange={handleChange('lunchBreakStart')}
-                          className={fieldClassName}
-                        />
+                        <label className="mb-2 block text-sm font-bold text-slate-900">Break starts</label>
+                        <input type="time" value={formState.lunchBreakStart} onChange={handleChange('lunchBreakStart')} className={fieldClassName} />
                       </div>
                       <div>
-                        <label className="mb-2 block text-xs font-medium text-body">Break End</label>
-                        <input
-                          type="time"
-                          value={formState.lunchBreakEnd}
-                          onChange={handleChange('lunchBreakEnd')}
-                          className={fieldClassName}
-                        />
+                        <label className="mb-2 block text-sm font-bold text-slate-900">Break ends</label>
+                        <input type="time" value={formState.lunchBreakEnd} onChange={handleChange('lunchBreakEnd')} className={fieldClassName} />
                       </div>
                     </div>
                   </div>
                 )}
-              </div>
+                <p className="text-xs text-slate-600">All times use South Africa Standard Time (SAST).</p>
+              </fieldset>
 
-              <div className="grid gap-4 sm:grid-cols-2 pt-4">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-heading">Per-slot capacity</label>
-                  <input
-                    id="perSlotCapacity"
-                    type="number"
-                    defaultValue={1}
-                    min={1}
-                    className={fieldClassName}
-                  />
+              <fieldset className="space-y-5 border-t border-slate-300 pt-7">
+                <legend className="text-xl font-bold text-slate-950">3. Set booking capacity</legend>
+                <p className="text-sm leading-6 text-slate-600">Use one seat per slot for individual appointments, or increase it for group or cohort sessions.</p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block text-sm font-bold text-slate-900">Seats per slot</label>
+                    <input type="number" value={formState.perSlotCapacity} onChange={handleChange('perSlotCapacity')} min={1} className={fieldClassName} required />
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-sm font-bold text-slate-900">Overall booking limit</label>
+                    <input type="number" value={formState.batchCapacity} onChange={handleChange('batchCapacity')} min={1} placeholder="Calculated automatically" className={fieldClassName} />
+                    <p className="mt-2 text-xs leading-5 text-slate-600">Optional. Use this only when the whole batch must stop before every seat is filled.</p>
+                  </div>
                 </div>
-              </div>
+              </fieldset>
 
-
-
-              <p className="text-xs text-body">
-                Any slot that would start during the lunch window will be skipped automatically.
-              </p>
-
-              <div className="flex flex-wrap gap-3 border-t border-slate-300 pt-5">
-                <button
-                  type="submit"
-                  disabled={saving}
-                    className="min-h-11 rounded-sm bg-slate-950 px-6 py-3 text-sm font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-700"
-                >
-                  {saving ? 'Saving…' : 'Save batch'}
+              <div className="flex flex-wrap gap-3 border-t border-slate-300 pt-6">
+                <button type="submit" disabled={saving} className="min-h-11 rounded-sm bg-slate-950 px-6 py-3 text-sm font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-700">
+                  {saving ? 'Saving…' : isCreateMode ? 'Save as draft' : 'Save changes'}
                 </button>
                 {!isCreateMode && batchSummary?.status === 'draft' && (
-                  <button
-                    type="button"
-                    onClick={handlePublish}
-                    disabled={publishing}
-                      className="min-h-11 rounded-sm bg-red-700 px-6 py-3 text-sm font-bold text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-700"
-                  >
+                  <button type="button" onClick={handlePublish} disabled={publishing} className="min-h-11 rounded-sm bg-red-700 px-6 py-3 text-sm font-bold text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-700">
                     {publishing ? 'Publishing…' : 'Publish and open bookings'}
                   </button>
                 )}
                 {!isCreateMode && batchSummary?.status === 'published' && (
-                  <button
-                    type="button"
-                    onClick={handleClose}
-                    disabled={closing}
-                      className="min-h-11 rounded-sm border-2 border-rose-800 bg-white px-6 py-3 text-sm font-bold text-rose-900 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:border-slate-300 disabled:text-slate-600"
-                  >
+                  <button type="button" onClick={handleClose} disabled={closing} className="min-h-11 rounded-sm border-2 border-rose-800 bg-white px-6 py-3 text-sm font-bold text-rose-900 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:border-slate-300 disabled:text-slate-600">
                     {closing ? 'Closing…' : 'Close bookings'}
                   </button>
                 )}
               </div>
             </div>
           </form>
+
+          <aside className="space-y-5 lg:sticky lg:top-6">
+            <section className="border border-slate-300 border-t-4 border-t-red-700 bg-white p-5" aria-labelledby="schedule-preview-heading">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-red-700">Live preview</p>
+                  <h2 id="schedule-preview-heading" className="mt-1 text-2xl font-bold text-slate-950">Generated schedule</h2>
+                </div>
+                <span className="border border-slate-300 bg-slate-50 px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-slate-700">
+                  {batchSummary?.status || 'Not saved'}
+                </span>
+              </div>
+
+              {generatedSlotsPreview.length > 0 ? (
+                <>
+                  <dl className="mt-5 grid grid-cols-3 border-y border-slate-300">
+                    <div className="py-4 pr-2">
+                      <dt className="text-xs font-bold uppercase tracking-wide text-slate-500">Slots</dt>
+                      <dd className="mt-1 text-2xl font-bold text-slate-950">{generatedSlotsPreview.length}</dd>
+                    </div>
+                    <div className="border-x border-slate-300 px-3 py-4">
+                      <dt className="text-xs font-bold uppercase tracking-wide text-slate-500">Days</dt>
+                      <dd className="mt-1 text-2xl font-bold text-slate-950">{previewDayCount}</dd>
+                    </div>
+                    <div className="py-4 pl-3">
+                      <dt className="text-xs font-bold uppercase tracking-wide text-slate-500">Seats</dt>
+                      <dd className="mt-1 text-2xl font-bold text-slate-950">{Number.isFinite(effectiveCapacity) ? effectiveCapacity : 0}</dd>
+                    </div>
+                  </dl>
+
+                  {isEndDateExtended && (
+                    <div className="mt-4 border border-amber-400 bg-amber-50 p-3 text-sm leading-5 text-amber-950">
+                      <p><strong>More days are required.</strong> To create {formState.targetSlotCount} slots, the schedule will extend to {generatedData.finalEndDateStr}.</p>
+                      {suggestedEndTime && (
+                        <button type="button" onClick={() => setFormState((current) => ({ ...current, dayEndTime: suggestedEndTime }))} className="mt-3 min-h-10 border-2 border-amber-900 bg-white px-3 py-2 text-xs font-bold text-amber-950 hover:bg-amber-100">
+                          Keep the dates and end at {suggestedEndTime}
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="mt-5">
+                    <h3 className="text-sm font-bold text-slate-950">First slots students will see</h3>
+                    <ol className="mt-3 divide-y divide-slate-200 border border-slate-300">
+                      {generatedSlotsPreview.slice(0, 6).map((slot, index) => (
+                        <li key={`${slot.start_time}-${index}`} className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm">
+                          <span className="font-medium text-slate-800">{formatPreviewSlot(slot.start_time, slot.end_time)}</span>
+                          <span className="whitespace-nowrap text-xs text-slate-500">{slot.capacity} {slot.capacity === 1 ? 'seat' : 'seats'}</span>
+                        </li>
+                      ))}
+                    </ol>
+                    {generatedSlotsPreview.length > 6 && <p className="mt-2 text-xs text-slate-600">+ {generatedSlotsPreview.length - 6} more slots will be created.</p>}
+                  </div>
+                </>
+              ) : (
+                <div className="mt-5 border border-dashed border-slate-400 bg-slate-50 p-5">
+                  <p className="font-bold text-slate-950">No slots to preview yet.</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">Enter the dates and daily times. The exact bookable schedule will appear here before you save anything.</p>
+                </div>
+              )}
+            </section>
+
+            <section className="border border-slate-300 bg-white p-5" aria-labelledby="workflow-heading">
+              <h2 id="workflow-heading" className="text-lg font-bold text-slate-950">What happens next</h2>
+              <ol className="mt-4 space-y-4">
+                <li className="flex gap-3">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-950 text-xs font-bold text-white">1</span>
+                  <div><p className="font-bold text-slate-950">Save the draft</p><p className="mt-1 text-sm leading-5 text-slate-600">Creates this batch and its generated slots.</p></div>
+                </li>
+                <li className="flex gap-3">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red-700 text-xs font-bold text-white">2</span>
+                  <div><p className="font-bold text-slate-950">Publish bookings</p><p className="mt-1 text-sm leading-5 text-slate-600">Opens the student booking page and creates shareable links.</p></div>
+                </li>
+                <li className="flex gap-3">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-slate-400 bg-white text-xs font-bold text-slate-700">3</span>
+                  <div><p className="font-bold text-slate-950">Monitor and attend</p><p className="mt-1 text-sm leading-5 text-slate-600">See booked students, lecturer roster and attendance from the saved batch.</p></div>
+                </li>
+              </ol>
+            </section>
+          </aside>
         </section>
       </div>
     </div>

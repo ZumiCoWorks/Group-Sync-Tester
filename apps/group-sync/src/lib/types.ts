@@ -4,11 +4,16 @@ export type Participant = {
   avatar: string;
   joinedAt: number;
   discipline?: string;
+  disciplines?: string[];
 };
 
 export type GroupMember = {
   name: string;
   avatar: string;
+  discipline?: string;
+  disciplines?: string[];
+  current_placement?: string;
+  performance?: string;
 };
 
 export type Group = {
@@ -41,4 +46,5 @@ export type SavedSession = {
 export type UploadedParticipant = {
   name: string;
   discipline?: string;
+  disciplines?: string[];
 };

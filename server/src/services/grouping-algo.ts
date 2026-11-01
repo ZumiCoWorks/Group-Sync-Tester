@@ -4,6 +4,7 @@ export interface SyncGroupMember {
   name: string;
   avatar: string;
   discipline?: string | null;
+  disciplines?: string[];
   student_number?: string | null;
   current_placement?: string | null;
   performance?: string | null;
@@ -20,10 +21,54 @@ export interface SyncParticipant {
   name: string;
   avatar: string;
   discipline?: string | null;
+  disciplines?: string[] | null;
   student_number?: string | null;
   current_placement?: string | null;
   performance?: string | null;
   joined_at: string;
+}
+
+type PerformanceRating = 'good' | 'average' | 'weak';
+
+function normalizePerformance(value?: string | null): PerformanceRating | undefined {
+  const normalized = value?.trim().toLowerCase();
+  if (!normalized) return undefined;
+  if (['good', 'high', 'strong', 'excellent'].includes(normalized)) return 'good';
+  if (['average', 'avg', 'medium', 'mid', 'satisfactory'].includes(normalized)) return 'average';
+  if (['weak', 'bad', 'low', 'poor'].includes(normalized)) return 'weak';
+  return undefined;
+}
+
+function getDisciplines(person: { discipline?: string | null; disciplines?: string[] | null }): string[] {
+  const values = [
+    ...(person.disciplines || []),
+    ...String(person.discipline || '').split(/[|;\n]+/),
+  ].map(value => value.trim()).filter(Boolean);
+  const seen = new Set<string>();
+  return values.filter(value => {
+    const key = value.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function hasDiscipline(person: { discipline?: string | null; disciplines?: string[] | null }, discipline: string): boolean {
+  const target = discipline.trim().toLowerCase();
+  return getDisciplines(person).some(value => value.toLowerCase() === target);
+}
+
+function toGroupMember(participant: SyncParticipant): SyncGroupMember {
+  const disciplines = getDisciplines(participant);
+  return {
+    name: participant.name,
+    avatar: participant.avatar,
+    discipline: disciplines[0] || participant.discipline,
+    disciplines,
+    student_number: participant.student_number,
+    current_placement: participant.current_placement,
+    performance: normalizePerformance(participant.performance),
+  };
 }
 
 export interface GroupingOptions {
@@ -64,14 +109,7 @@ export function generateGroups(
     return [
       {
         id: 'group-1',
-        members: participants.map(p => ({
-          name: p.name,
-          avatar: p.avatar,
-          discipline: p.discipline,
-          student_number: p.student_number,
-          current_placement: p.current_placement,
-          performance: p.performance
-        }))
+        members: participants.map(toGroupMember)
       }
     ];
   }
@@ -89,7 +127,7 @@ export function generateGroups(
     requiredDisciplines.forEach(reqDisc => {
       // Find all participants of this discipline who haven't been seeded yet
       const candidates = participants.filter(
-        p => p.discipline && p.discipline.trim().toLowerCase() === reqDisc.trim().toLowerCase() && !seededParticipantIds.has(p.id)
+        p => hasDiscipline(p, reqDisc) && !seededParticipantIds.has(p.id)
       );
 
       if (candidates.length === 0) return;
@@ -103,7 +141,7 @@ export function generateGroups(
 
         // Check if group already has this discipline represented
         const hasRepresentation = group.members.some(
-          m => m.discipline && m.discipline.trim().toLowerCase() === reqDisc.trim().toLowerCase()
+          m => hasDiscipline(m, reqDisc)
         );
         if (hasRepresentation) continue;
 
@@ -122,6 +160,11 @@ export function generateGroups(
             if (hasConflict) conflictScore += 1000;
           }
 
+          const performance = normalizePerformance(candidate.performance);
+          if (performance) {
+            conflictScore += group.members.filter(member => member.performance === performance).length * 2000;
+          }
+
           if (conflictScore < lowestConflictScore) {
             lowestConflictScore = conflictScore;
             bestCandidateIdx = cIdx;
@@ -134,14 +177,7 @@ export function generateGroups(
         shuffledCandidates[bestCandidateIdx] = temp;
 
         const selected = shuffledCandidates[candidateIndex];
-        group.members.push({
-          name: selected.name,
-          avatar: selected.avatar,
-          discipline: selected.discipline,
-          student_number: selected.student_number,
-          current_placement: selected.current_placement,
-          performance: selected.performance
-        });
+        group.members.push(toGroupMember(selected));
 
         seededParticipantIds.add(selected.id);
         candidateIndex++;
@@ -159,7 +195,7 @@ export function generateGroups(
     const withoutDiscipline: SyncParticipant[] = [];
 
     queue.forEach(p => {
-      const disc = p.discipline?.trim();
+      const disc = getDisciplines(p)[0];
       if (disc) {
         if (!disciplineGroups.has(disc)) {
           disciplineGroups.set(disc, []);
@@ -212,17 +248,20 @@ export function generateGroups(
       }
 
       // 3. Discipline conflict penalty: try to maximize diversity of disciplines in each group.
-      if (useDisciplines && participant.discipline) {
-        const sameDisciplineCount = group.members.filter(
-          (m: SyncGroupMember) => m.discipline && m.discipline.toLowerCase() === participant.discipline!.toLowerCase()
-        ).length;
-        score += sameDisciplineCount * 100; // Small penalty per matching discipline
+      if (useDisciplines) {
+        const participantDisciplines = getDisciplines(participant).map(value => value.toLowerCase());
+        const disciplineOverlapCount = group.members.reduce((total, member) => {
+          const memberDisciplines = getDisciplines(member).map(value => value.toLowerCase());
+          return total + participantDisciplines.filter(value => memberDisciplines.includes(value)).length;
+        }, 0);
+        score += disciplineOverlapCount * 100;
       }
 
-      // 4. Performance balance penalty: try to distribute performance ratings ('good', 'bad') evenly
-      if (participant.performance) {
+      // 4. Performance balance penalty: distribute Good, Average, and Weak ratings evenly.
+      const performance = normalizePerformance(participant.performance);
+      if (performance) {
         const samePerformanceCount = group.members.filter(
-          (m: SyncGroupMember) => m.performance === participant.performance
+          (m: SyncGroupMember) => m.performance === performance
         ).length;
         score += samePerformanceCount * 2000; // Large penalty to enforce even distribution
       }
@@ -239,14 +278,7 @@ export function generateGroups(
     });
 
     // Assign participant to the chosen group
-    groups[bestGroupIndex].members.push({
-      name: participant.name,
-      avatar: participant.avatar,
-      discipline: participant.discipline,
-      student_number: participant.student_number,
-      current_placement: participant.current_placement,
-      performance: participant.performance
-    });
+    groups[bestGroupIndex].members.push(toGroupMember(participant));
   });
 
   return groups;

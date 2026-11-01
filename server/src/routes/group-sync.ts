@@ -176,7 +176,8 @@ router.post('/session/:code/join', async (req: Request, res: Response, next: Nex
       }
 
       if (matched) {
-        discipline = matched.discipline;
+        const disciplines = Array.isArray(matched.disciplines) ? matched.disciplines.filter(Boolean) : [];
+        discipline = disciplines.length > 0 ? disciplines.join(' | ') : matched.discipline;
         currentPlacement = matched.currentPlacement;
       }
     }
@@ -263,8 +264,13 @@ router.post('/session/:code/group', async (req: Request, res: Response, next: Ne
           s => s.name && String(s.name).trim().toLowerCase() === String(p.name).trim().toLowerCase()
         );
       }
+      const disciplines = Array.isArray(matched?.disciplines)
+        ? matched.disciplines.filter((discipline: unknown): discipline is string => typeof discipline === 'string' && !!discipline.trim())
+        : String(p.discipline || '').split(/[|;\n]+/).map((discipline: string) => discipline.trim()).filter(Boolean);
       return {
         ...p,
+        discipline: disciplines.join(' | ') || p.discipline,
+        disciplines,
         performance: matched?.performance || null
       };
     });
@@ -482,7 +488,9 @@ router.post('/session/:code/populate', async (req: Request, res: Response, next:
       name: student.name,
       avatar: MOCK_AVATARS[index % MOCK_AVATARS.length],
       student_number: student.studentNumber || null,
-      discipline: student.discipline || null,
+      discipline: Array.isArray(student.disciplines) && student.disciplines.length > 0
+        ? student.disciplines.join(' | ')
+        : student.discipline || null,
       current_placement: student.currentPlacement || null
     }));
 

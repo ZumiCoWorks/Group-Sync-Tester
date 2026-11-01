@@ -2,15 +2,12 @@ import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from 'react
 
 export const continuumNav = [
   { href: '/', label: 'Home', index: '00' },
-  { href: '/ventures', label: 'Ventures', index: '01' },
-  { href: '/schedule', label: 'Schedule', index: '02' },
-  { href: '/groups', label: 'Groups', index: '03' },
-  { href: '/spaces', label: 'Spaces & Resources', index: '04' },
-  { href: '/learning', label: 'Learning & Assessment', index: '05' },
-  { href: '/content', label: 'Content Library', index: '06' },
-  { href: '/registry', label: 'Registry & Reporting', index: '07' },
-  { href: '/integrations', label: 'Data & Integrations', index: '08' },
-  { href: '/admin', label: 'Administration', index: '09' },
+  { href: '/workspaces', label: 'Workspaces', index: '01' },
+  { href: '/periods', label: 'Academic periods', index: '02' },
+  { href: '/ventures', label: 'Activities', index: '03' },
+  { href: '/modules', label: 'Services', index: '04' },
+  { href: '/admin', label: 'People', index: '05' },
+  { href: '/institution', label: 'Settings', index: '06' },
 ] as const;
 
 export type Tone = 'neutral' | 'positive' | 'warning' | 'critical' | 'accent';
@@ -21,7 +18,7 @@ export function ProductMark() {
       <span className="continuum-mark__afda">AFDA</span>
       <span className="continuum-mark__divider" aria-hidden="true" />
       <span className="continuum-mark__name">Continuum</span>
-      <span className="continuum-mark__poc">Proof of Concept</span>
+      <span className="continuum-mark__poc">Platform</span>
     </div>
   );
 }
@@ -44,14 +41,14 @@ export function AppFrame({ activePath, children, headerTools }: { activePath: st
         </nav>
         <div className="continuum-sidebar__foot">
           <span className="continuum-live-dot" aria-hidden="true" />
-          Demo environment
-          <small>Fictional data only</small>
+          BCom workspace
+          <small>Term 3 · 2026</small>
         </div>
       </aside>
       <div className="continuum-workspace">
         <header className="continuum-topbar">
-          <span>AFDA production-venture platform</span>
-          {headerTools || <div><strong>Continuum</strong><span aria-hidden="true">C</span></div>}
+          <div className="continuum-topbar__context"><span className="continuum-topbar__workspace">BCom</span><span aria-hidden="true">/</span><span>Term 3 · 2026</span></div>
+          <div className="continuum-topbar__tools">{headerTools || <><button className="continuum-topbar__icon" type="button" aria-label="Search" title="Search">⌕</button><button className="continuum-topbar__profile" type="button" aria-label="Open profile" title="Open profile">DA</button></>}</div>
         </header>
         <main className="continuum-main">{children}</main>
       </div>
@@ -106,6 +103,11 @@ export function ModuleDeepLink({ href, moduleName, source, status = 'configured'
 
 export function StatusBadge({ children, tone = 'neutral' }: { children: ReactNode; tone?: Tone }) {
   return <span className={`continuum-status continuum-status--${tone}`}>{children}</span>;
+}
+
+export function EvidenceBadge({ status }: { status: 'Built' | 'Prototype' | 'Emerging: validation required' | 'Proposed' | 'Dependent' }) {
+  const tone: Tone = status === 'Built' ? 'positive' : status === 'Prototype' ? 'accent' : status === 'Dependent' ? 'critical' : status === 'Emerging: validation required' ? 'warning' : 'neutral';
+  return <StatusBadge tone={tone}>{status}</StatusBadge>;
 }
 
 export function Metric({ label, value, note, tone = 'neutral' }: { label: string; value: ReactNode; note?: string; tone?: Tone }) {

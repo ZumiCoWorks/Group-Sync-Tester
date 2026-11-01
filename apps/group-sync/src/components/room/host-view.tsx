@@ -32,6 +32,24 @@ type HostViewProps = {
   onRemoveParticipant: (id: string) => Promise<void>;
 };
 
+const getDisciplineHistory = (person: { discipline?: string | null; disciplines?: string[] | null }) => {
+  const values = [
+    ...(person.disciplines || []),
+    ...String(person.discipline || '').split(/[|;\n]+/),
+  ].map(value => value.trim()).filter(Boolean);
+
+  return values.filter((value, index) =>
+    values.findIndex(candidate => candidate.toLowerCase() === value.toLowerCase()) === index
+  );
+};
+
+const getPerformanceBadge = (performance: string) => {
+  const normalized = performance.toLowerCase() === 'bad' ? 'weak' : performance.toLowerCase();
+  if (normalized === 'good') return { label: 'Good', className: 'bg-emerald-500/10 text-emerald-700' };
+  if (normalized === 'average') return { label: 'Average', className: 'bg-amber-500/10 text-amber-700' };
+  return { label: 'Weak', className: 'bg-rose-500/10 text-rose-700' };
+};
+
 export function HostView({
   sessionId,
   sessionData,
@@ -173,9 +191,10 @@ export function HostView({
   // Unique disciplines in current lobby participants
   const availableDisciplines = useMemo(() => {
     const discs = participants
-      .map(p => p.discipline?.trim())
-      .filter((d): d is string => !!d);
-    return Array.from(new Set(discs));
+      .flatMap(getDisciplineHistory);
+    return discs.filter((discipline, index) =>
+      discs.findIndex(candidate => candidate.toLowerCase() === discipline.toLowerCase()) === index
+    );
   }, [participants]);
 
   // Clean up requiredDisciplines if they are no longer in available list
@@ -424,7 +443,7 @@ export function HostView({
               <div className="flex items-center justify-between">
                 <div className="flex flex-col">
                   <Label htmlFor="discipline-switch" className="text-sm font-black text-muted-foreground uppercase tracking-widest font-headline">Balance Disciplines</Label>
-                  <span className="text-[10px] text-muted-foreground">Distribute disciplines evenly</span>
+                  <span className="text-[10px] text-muted-foreground">Balance every discipline in each student’s history</span>
                 </div>
                 <Switch id="discipline-switch" checked={useDisciplines} onCheckedChange={setUseDisciplines} />
               </div>
@@ -590,25 +609,24 @@ export function HostView({
                               </Button>
                             </div>
                             <div className="flex flex-wrap gap-2 mt-2">
-                              {m.discipline && (
-                                <span className="text-[9px] bg-rose-500/10 text-rose-600 px-2 py-0.5 rounded-full font-bold">
-                                  {m.discipline}
+                              {getDisciplineHistory(m).map(discipline => (
+                                <span key={discipline} className="text-[9px] bg-rose-500/10 text-rose-700 px-2 py-0.5 rounded-full font-bold">
+                                  {discipline}
                                 </span>
-                              )}
+                              ))}
                               {m.current_placement && (
                                 <span className="text-[9px] bg-purple-500/10 text-purple-600 px-2 py-0.5 rounded-full font-bold">
                                   Original: {m.current_placement}
                                 </span>
                               )}
-                              {m.performance && (
-                                <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${
-                                  m.performance === 'good'
-                                    ? 'bg-emerald-500/10 text-emerald-600'
-                                    : 'bg-amber-500/10 text-amber-600'
-                                }`}>
-                                  Rating: {m.performance}
-                                </span>
-                              )}
+                              {m.performance && (() => {
+                                const badge = getPerformanceBadge(m.performance);
+                                return (
+                                  <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${badge.className}`}>
+                                    Rating: {badge.label}
+                                  </span>
+                                );
+                              })()}
                             </div>
                           </div>
                         ))}
@@ -638,11 +656,11 @@ export function HostView({
                         <div className="flex flex-col min-w-0">
                           <span className="font-bold text-foreground text-sm truncate">{p.name}</span>
                           <div className="flex flex-wrap gap-1 mt-1">
-                            {p.discipline && (
-                              <span className="text-[9px] bg-rose-500/10 text-rose-600 px-1.5 py-0.2 rounded font-bold">
-                                {p.discipline}
+                            {getDisciplineHistory(p).map(discipline => (
+                              <span key={discipline} className="text-[9px] bg-rose-500/10 text-rose-700 px-1.5 py-0.5 rounded font-bold">
+                                {discipline}
                               </span>
-                            )}
+                            ))}
                             {p.current_placement && (
                               <span className="text-[9px] bg-purple-500/10 text-purple-600 px-1.5 py-0.2 rounded font-bold">
                                 Original: {p.current_placement}

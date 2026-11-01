@@ -49,7 +49,47 @@ describe('xlsx-parser', () => {
     expect(result.summary).toEqual({
       totalStudents: 3,
       withDiscipline: 3,
+      disciplineAssignments: 3,
       withPlacement: 3,
+      withPerformance: 0,
+    });
+  });
+
+  it('merges discipline history across repeated rows, columns, and workbook tabs', () => {
+    const wb = xlsx.utils.book_new();
+    const classList = xlsx.utils.aoa_to_sheet([
+      ['First Name', 'Last Name', 'Student Number', 'Discipline', 'Previous Discipline', 'Performance'],
+      ['Alice', 'Smith', 'STU001', 'Finance', 'Design', 'Average'],
+      ['Bob', 'Jones', 'STU002', 'Marketing', '', 'Good'],
+    ]);
+    const history = xlsx.utils.aoa_to_sheet([
+      ['Student Number', 'Discipline', 'Rating'],
+      ['STU001', 'Writing', 'Weak'],
+      ['STU001', 'Finance', 'Weak'],
+      ['STU002', 'Strategy; Entrepreneurship', 'Good'],
+    ]);
+    xlsx.utils.book_append_sheet(wb, classList, 'Class List');
+    xlsx.utils.book_append_sheet(wb, history, 'Discipline History');
+
+    const result = parseRosterExcel(xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' }));
+
+    expect(result.success).toBe(true);
+    expect(result.students).toHaveLength(2);
+    expect(result.students.find(student => student.studentNumber === 'STU001')).toMatchObject({
+      discipline: 'Finance',
+      disciplines: ['Finance', 'Design', 'Writing'],
+      performance: 'weak',
+    });
+    expect(result.students.find(student => student.studentNumber === 'STU002')?.disciplines).toEqual([
+      'Marketing',
+      'Strategy',
+      'Entrepreneurship',
+    ]);
+    expect(result.summary).toMatchObject({
+      totalStudents: 2,
+      withDiscipline: 2,
+      disciplineAssignments: 6,
+      withPerformance: 2,
     });
   });
 
